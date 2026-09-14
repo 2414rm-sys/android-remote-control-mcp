@@ -143,11 +143,9 @@ class McpServerService : Service() {
 
     @Inject lateinit var webViewNodeMerger: WebViewNodeMerger
 
-
     @Inject lateinit var intentDispatcher: IntentDispatcher
 
     @Inject lateinit var notificationProvider: NotificationProvider
-
 
     @Inject lateinit var ephemeralFileLinkService: EphemeralFileLinkService
 
