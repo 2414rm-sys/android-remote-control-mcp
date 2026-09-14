@@ -19,10 +19,9 @@ import javax.inject.Singleton
  * without modification.
  */
 @Singleton
-class TunnelManager
-    @Inject
-    constructor() {
-    private val _tunnelStatus = MutableStateFlow<TunnelStatus>(TunnelStatus.Disconnected)
+class TunnelManager @Inject constructor() {
+    private val _tunnelStatus: MutableStateFlow<TunnelStatus> =
+        MutableStateFlow(TunnelStatus.Disconnected)
     val tunnelStatus: StateFlow<TunnelStatus> = _tunnelStatus.asStateFlow()
 
     suspend fun start(localPort: Int) {
