@@ -36,7 +36,7 @@ import java.net.URI
 fun Route.installOAuthRoutes(deps: OAuthRouteDeps) {
     val pendingAuthorize = PendingAuthorizeStore()
 
-    get("/.well-known/oauth-protected-resource") { call.respondProtectedResourceMetadata(deps) }
+    get("/.well-known/oauth-protected-resource") { call.respondProtectedResourceMetadata() }
     get("/.well-known/oauth-protected-resource/{tail...}") { call.respondProtectedResourceMetadata() }
     get("/.well-known/oauth-authorization-server") { call.respondAuthorizationServerMetadata() }
     get("/.well-known/oauth-authorization-server/{tail...}") { call.respondAuthorizationServerMetadata() }
