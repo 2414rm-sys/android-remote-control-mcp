@@ -20,31 +20,14 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES" />
 
-    <!-- Camera -->
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-    <!-- Location (background-location is geofence-only → declared in the gms flavor manifest) -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- WiFi (Event Channel) -->
+    <!-- WiFi (network info) -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
 
-    <!-- Foreground service type for Event Channel (location for geofence/WiFi) -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-
-    <!-- Media read access (optional — enables "all files" mode for built-in storage locations) -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.microphone" android:required="false" />
-    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <!-- TEND-STRIP: camera, microphone, location, and media permissions removed.
+         This build is Tailscale-only device control: Accessibility + network.
+         No public tunnels, no media/camera/mic/location access. -->
 
     <application
         android:name=".McpApplication"
@@ -149,11 +132,8 @@
             android:permission="android.permission.DUMP">
         </receiver>
 
-        <!-- Event Channel Service -->
-        <service
-            android:name=".services.channel.EventChannelService"
-            android:exported="false"
-            android:foregroundServiceType="location" />
+        <!-- TEND-STRIP: EventChannelService removed (was location-based).
+             Real-time events not needed for Tailscale-only control. -->
 
         <!-- ADB Service Trampoline (headless start/stop via adb shell am start) -->
         <!-- Gated on DUMP (adb-shell-only) for the same reason as AdbConfigReceiver above. -->

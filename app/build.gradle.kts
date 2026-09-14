@@ -214,7 +214,9 @@ configurations.matching { it.name.startsWith("ktlint") }.configureEach {
 
 android {
     namespace = "com.danielealbano.androidremotecontrolmcp"
-    compileSdk = 37
+    // TEND-STRIP: 37 -> 36. android-37 platform is not in the public SDK
+    // repository yet; 36 covers the S24 Ultra (Android 16, API 36).
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.danielealbano.androidremotecontrolmcp"

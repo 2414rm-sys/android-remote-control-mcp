@@ -61,8 +61,6 @@ import com.danielealbano.androidremotecontrolmcp.services.storage.PermissionChec
 import com.danielealbano.androidremotecontrolmcp.services.storage.PermissionCheckerImpl
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProviderImpl
-import com.danielealbano.androidremotecontrolmcp.services.tunnel.AndroidCloudflareBinaryResolver
-import com.danielealbano.androidremotecontrolmcp.services.tunnel.CloudflaredBinaryResolver
 import com.danielealbano.androidremotecontrolmcp.services.update.AppVersionProvider
 import com.danielealbano.androidremotecontrolmcp.services.update.BuildConfigAppVersionProvider
 import com.danielealbano.androidremotecontrolmcp.services.update.GithubReleaseChecker
@@ -204,8 +202,7 @@ abstract class ServiceModule {
     @Singleton
     abstract fun bindScreenCaptureProvider(impl: ScreenCaptureProviderImpl): ScreenCaptureProvider
 
-    @Binds
-    abstract fun bindCloudflareBinaryResolver(impl: AndroidCloudflareBinaryResolver): CloudflaredBinaryResolver
+    // TEND-STRIP: cloudflare binary resolver binding removed (tunnel deleted).
 
     @Binds
     @Singleton

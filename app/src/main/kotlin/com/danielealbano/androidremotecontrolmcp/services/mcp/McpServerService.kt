@@ -31,11 +31,9 @@ import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.ReferenceCountedToolCallIndicator
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.ToolCallIndicator
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerAppManagementTools
-import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerCameraTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerFileTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerGestureTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerIntentTools
-import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerLocationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNodeActionTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNotificationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerScreenIntrospectionTools
@@ -61,9 +59,7 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenSt
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.TypeInputController
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.WebViewNodeMerger
 import com.danielealbano.androidremotecontrolmcp.services.apps.AppManager
-import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProvider
 import com.danielealbano.androidremotecontrolmcp.services.intents.IntentDispatcher
-import com.danielealbano.androidremotecontrolmcp.services.location.LocationProvider
 import com.danielealbano.androidremotecontrolmcp.services.notifications.McpNotificationListenerService
 import com.danielealbano.androidremotecontrolmcp.services.notifications.NotificationProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
@@ -147,13 +143,11 @@ class McpServerService : Service() {
 
     @Inject lateinit var webViewNodeMerger: WebViewNodeMerger
 
-    @Inject lateinit var cameraProvider: CameraProvider
 
     @Inject lateinit var intentDispatcher: IntentDispatcher
 
     @Inject lateinit var notificationProvider: NotificationProvider
 
-    @Inject lateinit var locationProvider: LocationProvider
 
     @Inject lateinit var ephemeralFileLinkService: EphemeralFileLinkService
 
@@ -457,7 +451,7 @@ class McpServerService : Service() {
         registerAccessibilityToolBundle(registrar, toolNamePrefix, perms)
         registerFileTools(registrar, storageLocationProvider, fileOperationProvider, toolNamePrefix, perms)
         registerAppManagementTools(registrar, appManager, privacyToolGate, toolNamePrefix, perms)
-        registerCameraTools(registrar, cameraProvider, fileOperationProvider, toolNamePrefix, perms)
+        // TEND-STRIP: camera tools removed (permission stripped).
         registerIntentTools(registrar, intentDispatcher, toolNamePrefix, perms)
         registerNotificationTools(
             registrar,
@@ -467,7 +461,7 @@ class McpServerService : Service() {
             toolNamePrefix,
             perms,
         )
-        registerLocationTools(registrar, locationProvider, privacyToolGate, toolNamePrefix, perms)
+        // TEND-STRIP: location tools removed (permission stripped).
         registerSharingBundle(registrar, toolNamePrefix, perms, fileSizeLimitMb)
     }
 

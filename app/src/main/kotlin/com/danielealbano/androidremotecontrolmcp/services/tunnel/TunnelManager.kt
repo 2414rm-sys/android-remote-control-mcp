@@ -1,96 +1,33 @@
 package com.danielealbano.androidremotecontrolmcp.services.tunnel
 
-import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
-import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
-import com.danielealbano.androidremotecontrolmcp.data.repository.ServerLogRepository
-import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
-import javax.inject.Provider
 import javax.inject.Singleton
 
 /**
- * Orchestrates tunnel provider lifecycle based on user settings.
+ * TEND-STRIP: tunnel support removed.
  *
- * This is a singleton that receives factory providers (via [Provider])
- * so fresh provider instances are created per tunnel session.
+ * The Cloudflare/ngrok providers (which downloaded and executed external
+ * binaries and exposed the device through public URLs) have been deleted.
+ * This build is Tailscale-only: the MCP server binds to the device's network
+ * interfaces and is reached via the tailnet. No public tunnel can exist.
+ *
+ * This no-op keeps the [McpServerService] and UI call sites compiling
+ * without modification.
  */
 @Singleton
-class TunnelManager
-    @Inject
-    constructor(
-        private val settingsRepository: SettingsRepository,
-        private val cloudflareTunnelProviderFactory: Provider<CloudflareTunnelProvider>,
-        private val ngrokTunnelProviderFactory: Provider<NgrokTunnelProvider>,
-        private val serverLogRepository: ServerLogRepository,
-    ) {
-        private val _tunnelStatus = MutableStateFlow<TunnelStatus>(TunnelStatus.Disconnected)
-        val tunnelStatus: StateFlow<TunnelStatus> = _tunnelStatus.asStateFlow()
+class TunnelManager @Inject constructor() {
+    private val _tunnelStatus = MutableStateFlow<TunnelStatus>(TunnelStatus.Disconnected)
+    val tunnelStatus: StateFlow<TunnelStatus> = _tunnelStatus.asStateFlow()
 
-        private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        private val mutex = Mutex()
-        private var activeProvider: TunnelProvider? = null
-        private var statusRelayJob: Job? = null
-
-        suspend fun start(localPort: Int) {
-            mutex.withLock {
-                val config = settingsRepository.serverConfig.first()
-
-                if (!config.tunnelEnabled) return
-
-                // A tunnel always targets an http://localhost origin, so it MUST NOT run while the
-                // server serves HTTPS. (The McpServerService start path enforces this too.)
-                if (config.httpsEnabled) return
-
-                val provider =
-                    when (config.tunnelProvider) {
-                        TunnelProviderType.CLOUDFLARE -> cloudflareTunnelProviderFactory.get()
-                        TunnelProviderType.NGROK -> ngrokTunnelProviderFactory.get()
-                    }
-
-                statusRelayJob =
-                    scope.launch {
-                        provider.status.collect { _tunnelStatus.value = it }
-                    }
-
-                try {
-                    provider.start(localPort, config)
-                } catch (
-                    @Suppress("TooGenericExceptionCaught")
-                    e: Exception,
-                ) {
-                    statusRelayJob?.cancel()
-                    statusRelayJob = null
-                    throw e
-                }
-                activeProvider = provider
-            }
-        }
-
-        suspend fun stop() {
-            mutex.withLock {
-                if (_tunnelStatus.value !is TunnelStatus.Disconnected) {
-                    serverLogRepository.log(ServerLogEntry.Type.TUNNEL, "Tunnel stopped")
-                }
-
-                statusRelayJob?.cancel()
-                statusRelayJob = null
-
-                activeProvider?.stop()
-                activeProvider = null
-
-                _tunnelStatus.value = TunnelStatus.Disconnected
-            }
-        }
+    suspend fun start(localPort: Int) {
+        // No-op: tunnels are removed in this build.
     }
+
+    suspend fun stop() {
+        // No-op.
+    }
+}
