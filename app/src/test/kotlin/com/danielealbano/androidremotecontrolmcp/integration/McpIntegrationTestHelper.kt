@@ -25,11 +25,9 @@ import com.danielealbano.androidremotecontrolmcp.mcp.oauth.installOAuthRoutes
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.LoggedToolRegistrar
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerAppManagementTools
-import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerCameraTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerFileTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerGestureTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerIntentTools
-import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerLocationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNodeActionTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerNotificationTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerScreenIntrospectionTools
@@ -70,9 +68,7 @@ import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenSt
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.TypeInputController
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.WebViewNodeMerger
 import com.danielealbano.androidremotecontrolmcp.services.apps.AppManager
-import com.danielealbano.androidremotecontrolmcp.services.camera.CameraProvider
 import com.danielealbano.androidremotecontrolmcp.services.intents.IntentDispatcher
-import com.danielealbano.androidremotecontrolmcp.services.location.LocationProvider
 import com.danielealbano.androidremotecontrolmcp.services.notifications.NotificationProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenCaptureProvider
 import com.danielealbano.androidremotecontrolmcp.services.screencapture.ScreenshotAnnotator
@@ -334,7 +330,6 @@ object McpIntegrationTestHelper {
     ) {
         registerFileTools(registrar, deps.storageLocationProvider, deps.fileOperationProvider, toolNamePrefix, perms)
         registerAppManagementTools(registrar, deps.appManager, deps.privacyToolGate, toolNamePrefix, perms)
-        registerCameraTools(registrar, deps.cameraProvider, deps.fileOperationProvider, toolNamePrefix, perms)
         registerIntentTools(registrar, deps.intentDispatcher, toolNamePrefix, perms)
         registerNotificationTools(
             registrar,
@@ -344,7 +339,6 @@ object McpIntegrationTestHelper {
             toolNamePrefix,
             perms,
         )
-        registerLocationTools(registrar, deps.locationProvider, deps.privacyToolGate, toolNamePrefix, perms)
         registerSharingTools(
             registrar,
             deps.sharedContentInbox,
@@ -602,12 +596,10 @@ data class MockDependencies(
     val typeInputController: TypeInputController,
     val screenshotAnnotator: ScreenshotAnnotator,
     val screenshotEncoder: ScreenshotEncoder,
-    val cameraProvider: CameraProvider,
     val nodeCache: AccessibilityNodeCache,
     val screenStateSnapshotCache: ScreenStateSnapshotCache,
     val intentDispatcher: IntentDispatcher,
     val notificationProvider: NotificationProvider,
-    val locationProvider: LocationProvider,
     val sharedContentInbox: SharedContentInbox,
     val ephemeralFileLinkService: EphemeralFileLinkService,
     val privacyStatusFlow: MutableStateFlow<PrivacyModeStatus>,
