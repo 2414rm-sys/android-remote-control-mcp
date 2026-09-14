@@ -162,7 +162,6 @@ fun ServerScreen(
                 port = serverConfig.port,
                 httpsEnabled = serverConfig.httpsEnabled,
                 bearerToken = serverConfig.bearerToken,
-                serverStatus = serverStatus,
                 onCopyAll = { text ->
                     clipboardManager.setText(AnnotatedString(text))
                     Toast.makeText(context, copiedToClipboardMessage, Toast.LENGTH_SHORT).show()

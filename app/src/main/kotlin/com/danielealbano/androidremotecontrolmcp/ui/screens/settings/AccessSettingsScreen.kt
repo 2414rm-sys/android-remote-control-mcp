@@ -195,7 +195,6 @@ fun AccessSettingsScreen(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
-
         }
     }
 }
