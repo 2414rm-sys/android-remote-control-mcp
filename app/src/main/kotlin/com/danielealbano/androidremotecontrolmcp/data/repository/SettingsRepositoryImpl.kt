@@ -12,18 +12,15 @@ import com.danielealbano.androidremotecontrolmcp.data.model.AvailableUpdate
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.BuiltinPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
-import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.PlaceholderFormat
 import com.danielealbano.androidremotecontrolmcp.data.model.PrivacyModeConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.RedactionMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
-import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.privacy.PiiCategory
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import java.net.URL
 import java.util.UUID
 import javax.inject.Inject
 
@@ -43,7 +40,6 @@ private val OAUTH_ENABLED_KEY = booleanPreferencesKey("oauth_enabled")
 private val BEARER_TOKEN_ENABLED_KEY = booleanPreferencesKey("bearer_token_enabled")
 private val BEARER_TOKEN_ENABLED_INITIALIZED_KEY =
     booleanPreferencesKey("bearer_token_enabled_initialized")
-private val PUBLIC_URL_OVERRIDE_KEY = stringPreferencesKey("public_url_override")
 private val JWT_SIGNING_SECRET_KEY = stringPreferencesKey("jwt_signing_secret")
 private val AUTO_START_KEY = booleanPreferencesKey("auto_start_on_boot")
 private val HIDE_FROM_RECENTS_KEY = booleanPreferencesKey("hide_from_recents")
@@ -52,13 +48,6 @@ private val SERVER_RUNNING_KEY = booleanPreferencesKey("server_running")
 private val HTTPS_ENABLED_KEY = booleanPreferencesKey("https_enabled")
 private val CERTIFICATE_SOURCE_KEY = stringPreferencesKey("certificate_source")
 private val CERTIFICATE_HOSTNAME_KEY = stringPreferencesKey("certificate_hostname")
-private val TUNNEL_ENABLED_KEY = booleanPreferencesKey("tunnel_enabled")
-private val TUNNEL_PROVIDER_KEY = stringPreferencesKey("tunnel_provider")
-private val NGROK_AUTHTOKEN_KEY = stringPreferencesKey("ngrok_authtoken")
-private val NGROK_DOMAIN_KEY = stringPreferencesKey("ngrok_domain")
-private val CLOUDFLARE_TUNNEL_MODE_KEY = stringPreferencesKey("cloudflare_tunnel_mode")
-private val CLOUDFLARE_TUNNEL_TOKEN_KEY = stringPreferencesKey("cloudflare_tunnel_token")
-private val CLOUDFLARE_TUNNEL_EXTRA_ARGS_KEY = stringPreferencesKey("cloudflare_tunnel_extra_args")
 private val FILE_SIZE_LIMIT_KEY = intPreferencesKey("file_size_limit_mb")
 private val ALLOW_HTTP_DOWNLOADS_KEY = booleanPreferencesKey("allow_http_downloads")
 private val ALLOW_UNVERIFIED_HTTPS_KEY = booleanPreferencesKey("allow_unverified_https_certs")
@@ -101,10 +90,6 @@ private fun mapPreferencesToServerConfig(prefs: Preferences): ServerConfig {
     val bindingAddressName = prefs[BINDING_ADDRESS_KEY] ?: BindingAddress.LOCALHOST.name
     val certificateSourceName = prefs[CERTIFICATE_SOURCE_KEY] ?: CertificateSource.AUTO_GENERATED.name
 
-    val tunnelProviderName = prefs[TUNNEL_PROVIDER_KEY] ?: TunnelProviderType.CLOUDFLARE.name
-    val cloudflareTunnelModeName =
-        prefs[CLOUDFLARE_TUNNEL_MODE_KEY] ?: CloudflareTunnelMode.FREE.name
-
     return ServerConfig(
         port = prefs[PORT_KEY] ?: ServerConfig.DEFAULT_PORT,
         bindingAddress =
@@ -120,17 +105,6 @@ private fun mapPreferencesToServerConfig(prefs: Preferences): ServerConfig {
         certificateHostname =
             prefs[CERTIFICATE_HOSTNAME_KEY]
                 ?: ServerConfig.DEFAULT_CERTIFICATE_HOSTNAME,
-        tunnelEnabled = prefs[TUNNEL_ENABLED_KEY] ?: false,
-        tunnelProvider =
-            TunnelProviderType.entries.firstOrNull { it.name == tunnelProviderName }
-                ?: TunnelProviderType.CLOUDFLARE,
-        ngrokAuthtoken = prefs[NGROK_AUTHTOKEN_KEY] ?: "",
-        ngrokDomain = prefs[NGROK_DOMAIN_KEY] ?: "",
-        cloudflareTunnelMode =
-            CloudflareTunnelMode.entries.firstOrNull { it.name == cloudflareTunnelModeName }
-                ?: CloudflareTunnelMode.FREE,
-        cloudflareTunnelToken = prefs[CLOUDFLARE_TUNNEL_TOKEN_KEY] ?: "",
-        cloudflareTunnelExtraArgs = prefs[CLOUDFLARE_TUNNEL_EXTRA_ARGS_KEY] ?: "",
         fileSizeLimitMb = prefs[FILE_SIZE_LIMIT_KEY] ?: ServerConfig.DEFAULT_FILE_SIZE_LIMIT_MB,
         allowHttpDownloads = prefs[ALLOW_HTTP_DOWNLOADS_KEY] ?: false,
         allowUnverifiedHttpsCerts = prefs[ALLOW_UNVERIFIED_HTTPS_KEY] ?: false,
@@ -140,7 +114,6 @@ private fun mapPreferencesToServerConfig(prefs: Preferences): ServerConfig {
         deviceSlug = prefs[DEVICE_SLUG_KEY] ?: "",
         oauthEnabled = prefs[OAUTH_ENABLED_KEY] ?: true,
         bearerTokenEnabled = prefs[BEARER_TOKEN_ENABLED_KEY] ?: true,
-        publicUrlOverride = prefs[PUBLIC_URL_OVERRIDE_KEY] ?: "",
         toolPermissionsConfig = ToolPermissionsConfig.fromJsonOrDefault(prefs[TOOL_PERMISSIONS_KEY]),
         privacyModeConfig = PrivacyModeConfig.fromJsonOrDefault(prefs[PRIVACY_MODE_CONFIG_KEY]),
         hideFromRecents = prefs[HIDE_FROM_RECENTS_KEY] ?: false,
@@ -311,29 +284,6 @@ class SettingsRepositoryImpl
             }
         }
 
-        override suspend fun updatePublicUrlOverride(url: String) =
-            logScalarChange(PUBLIC_URL_OVERRIDE_KEY, "public_url_override", url, "") { o, n ->
-                "Public URL override changed ${o.ifEmpty { "(none)" }} → ${n.ifEmpty { "(none)" }}"
-            }
-
-        override fun validatePublicUrlOverride(url: String): Result<String> {
-            if (url.isBlank()) {
-                return Result.success("")
-            }
-            return try {
-                val parsed = URL(url)
-                if (parsed.protocol != "http" && parsed.protocol != "https") {
-                    Result.failure(IllegalArgumentException("URL must use http or https protocol"))
-                } else {
-                    Result.success(url)
-                }
-            } catch (
-                @Suppress("TooGenericExceptionCaught") e: Exception,
-            ) {
-                Result.failure(IllegalArgumentException("Invalid URL format: ${e.message}"))
-            }
-        }
-
         override suspend fun getOrCreateJwtSigningSecret(): String {
             dataStore.data
                 .first()[JWT_SIGNING_SECRET_KEY]
@@ -432,55 +382,6 @@ class SettingsRepositoryImpl
                 ServerConfig.DEFAULT_CERTIFICATE_HOSTNAME,
             ) { o, n ->
                 "Certificate hostname changed $o → $n"
-            }
-
-        override suspend fun updateTunnelEnabled(enabled: Boolean) {
-            dataStore.edit { prefs ->
-                val old = prefs[TUNNEL_ENABLED_KEY] ?: false
-                prefs[TUNNEL_ENABLED_KEY] = enabled
-                logToggle("tunnel_enabled", old, enabled, "Remote access tunnel")
-            }
-        }
-
-        override suspend fun updateTunnelProvider(provider: TunnelProviderType) =
-            logScalarChange(
-                TUNNEL_PROVIDER_KEY,
-                "tunnel_provider",
-                provider.name,
-                TunnelProviderType.CLOUDFLARE.name,
-            ) { o, n ->
-                "Tunnel provider changed $o → $n"
-            }
-
-        override suspend fun updateNgrokAuthtoken(authtoken: String) =
-            logScalarChange(NGROK_AUTHTOKEN_KEY, "ngrok_authtoken", authtoken, "") { _, _ -> "ngrok authtoken changed" }
-
-        override suspend fun updateNgrokDomain(domain: String) =
-            logScalarChange(NGROK_DOMAIN_KEY, "ngrok_domain", domain, "") { o, n -> "ngrok domain changed $o → $n" }
-
-        override suspend fun updateCloudflareTunnelMode(mode: CloudflareTunnelMode) =
-            logScalarChange(
-                CLOUDFLARE_TUNNEL_MODE_KEY,
-                "cloudflare_tunnel_mode",
-                mode.name,
-                CloudflareTunnelMode.FREE.name,
-            ) { o, n ->
-                "Cloudflare tunnel mode changed $o → $n"
-            }
-
-        override suspend fun updateCloudflareTunnelToken(token: String) =
-            logScalarChange(CLOUDFLARE_TUNNEL_TOKEN_KEY, "cloudflare_tunnel_token", token, "") { _, _ ->
-                "Cloudflare tunnel token changed"
-            }
-
-        override suspend fun updateCloudflareTunnelExtraArgs(extraArgs: String) =
-            logScalarChange(
-                CLOUDFLARE_TUNNEL_EXTRA_ARGS_KEY,
-                "cloudflare_tunnel_extra_args",
-                extraArgs,
-                "",
-            ) { o, n ->
-                "Cloudflare tunnel extra arguments changed $o → $n"
             }
 
         override suspend fun updateFileSizeLimit(limitMb: Int) =

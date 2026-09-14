@@ -54,13 +54,6 @@ graph TB
                 SDK["SDK Server → Server.addTool()"]
                 HTTP --> StreamHTTP --> Auth --> SDK
             end
-            subgraph Tunnel["TunnelManager (optional)"]
-                CF["CloudflareTunnelProvider\n(process-based)"]
-                Ngrok["NgrokTunnelProvider\n(in-process JNI)"]
-                PubURL["Public HTTPS URL\n(*.trycloudflare.com / ngrok)"]
-                CF --> PubURL
-                Ngrok --> PubURL
-            end
         end
 
         MainAct -->|"StateFlow (status)"| McpServerSvc
@@ -91,8 +84,7 @@ graph TB
      d. Creates `McpServer` with config, keystore, and SDK `Server` (MCP Kotlin SDK)
      e. Starts Ktor server (HTTP by default, HTTPS if enabled)
      f. Updates `ServerStatus.Running` via companion-level StateFlow
-     g. If tunnel enabled: starts `TunnelManager` (connects to Cloudflare or ngrok)
-     h. Tunnel status and URL logged to UI via `serverLogEvents` SharedFlow
+     g. Server startup logged to UI via `serverLogEvents` SharedFlow
 
 ### Shutdown Sequence
 
@@ -100,8 +92,7 @@ graph TB
    - Sends `ACTION_STOP` intent to `McpServerService`
    - `McpServerService.onDestroy()`:
      a. Updates `ServerStatus.Stopping` via companion-level StateFlow
-     b. Stops tunnel (with 3s ANR-safe timeout) — tunnel stops BEFORE server
-     c. Stops Ktor server gracefully (1s grace + 5s timeout)
+     b. Stops Ktor server gracefully (1s grace + 5s timeout)
      d. Cancels coroutine scope
      e. Clears singleton instance
      f. Updates `ServerStatus.Stopped` via companion-level StateFlow

@@ -94,16 +94,4 @@ class AccessViewModelTest {
             viewModel.regenerateBearerToken()
             coVerify { repository.generateNewBearerToken() }
         }
-
-    @Test
-    @DisplayName("valid override persists, invalid surfaces error")
-    fun overrideValidation() =
-        runTest {
-            viewModel.setPublicUrlOverride("https://pinned.host")
-            coVerify { repository.updatePublicUrlOverride("https://pinned.host") }
-
-            viewModel.setPublicUrlOverride("not a url")
-            assertTrue(viewModel.publicUrlOverrideError.value != null)
-            coVerify(exactly = 0) { repository.updatePublicUrlOverride("not a url") }
-        }
 }

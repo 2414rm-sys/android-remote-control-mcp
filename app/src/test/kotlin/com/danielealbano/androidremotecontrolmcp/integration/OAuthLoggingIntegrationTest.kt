@@ -37,7 +37,7 @@ class OAuthLoggingIntegrationTest {
     fun registerLogs() =
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { _ ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { _ ->
                 register(client)
                 assertTrue(
                     deps.serverLog.ofType(ServerLogEntry.Type.OAUTH).any {
@@ -57,7 +57,7 @@ class OAuthLoggingIntegrationTest {
     fun rejectedRedirectLogs() =
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { _ ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { _ ->
                 val resp =
                     client.post("/register") {
                         contentType(ContentType.Application.Json)
@@ -79,7 +79,7 @@ class OAuthLoggingIntegrationTest {
     fun authorizeLogs() =
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { _ ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { _ ->
                 val clientId = register(client)
                 authorize(client, clientId)
                 assertTrue(
@@ -95,7 +95,7 @@ class OAuthLoggingIntegrationTest {
     fun tokensIssuedLogs() =
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { ctx ->
                 val clientId = register(client)
                 danceToTokens(ctx, clientId)
                 assertTrue(
@@ -111,7 +111,7 @@ class OAuthLoggingIntegrationTest {
     fun refreshLogs() =
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { ctx ->
                 val clientId = register(client)
                 val tokens = danceToTokens(ctx, clientId)
                 refreshRequest(client, clientId, tokens.refresh)
@@ -128,7 +128,7 @@ class OAuthLoggingIntegrationTest {
     fun noTokenValues() =
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { ctx ->
                 val clientId = register(client)
                 val tokens = danceToTokens(ctx, clientId)
                 refreshRequest(client, clientId, tokens.refresh)
@@ -240,8 +240,7 @@ class OAuthLoggingIntegrationTest {
 
     private companion object {
         const val REDIRECT = "https://claude.ai/api/mcp/auth_callback"
-        const val OVERRIDE = "https://test.host"
-        const val CANONICAL = "https://test.host/mcp"
+        const val CANONICAL = "http://localhost/mcp"
 
         // RFC 7636 Appendix B PKCE test vector.
         const val VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"

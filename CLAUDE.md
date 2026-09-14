@@ -293,7 +293,7 @@ This project uses **DataStore** (not Room database) for persisting settings. The
 - Access DataStore only through `SettingsRepository` (never directly).
 - Use Preferences DataStore (key-value) for simple settings.
 - Use Proto DataStore if structured data becomes complex (not needed initially).
-- **HTTPS is optional and disabled by default; HTTP is the primary transport.** The device's IP changes frequently and public CAs cannot issue valid certificates for bare/dynamic IPs, so any HTTPS certificate will be self-signed and clients must allow insecure certificates. Store HTTPS enabled toggle, certificate source (auto-generated vs custom), and hostname for auto-generated certificates. Future plans include ngrok/Tailscale integration for proper HTTPS.
+- **HTTPS is optional and disabled by default; HTTP is the primary transport.** The device's IP changes frequently and public CAs cannot issue valid certificates for bare/dynamic IPs, so any HTTPS certificate will be self-signed and clients must allow insecure certificates. Store HTTPS enabled toggle, certificate source (auto-generated vs custom), and hostname for auto-generated certificates. Future plans include Tailscale integration for proper HTTPS.
 
 ### Workflow for settings changes:
 1) Update `ServerConfig` data class if new settings are added.
@@ -546,11 +546,10 @@ fun `tap with valid coordinates calls actionExecutor and returns success`() = ru
 - E2E tests are slow (container startup, emulator boot); run selectively.
 
 ### Environment variables for tests
-- Some integration tests (e.g., `NgrokTunnelIntegrationTest`) require environment variables.
 - Environment variables are stored in `.env` (gitignored). See `.env.example` for required variables.
 - **When running tests via Makefile** (`make test-unit`, `make test-integration`, `make test`): `.env` is sourced automatically if it exists.
 - **When running tests manually** via `./gradlew`: source `.env` first: `set -a && source .env && set +a && ./gradlew :app:test`
-- To run a single integration test: `set -a && source .env && set +a && ./gradlew :app:testDebugUnitTest --tests "com.danielealbano.androidremotecontrolmcp.integration.NgrokTunnelIntegrationTest"`
+- To run a single integration test: `set -a && source .env && set +a && ./gradlew :app:testDebugUnitTest --tests "com.danielealbano.androidremotecontrolmcp.integration.OAuthFlowIntegrationTest"`
 
 ### Fix broken tests rule
 - If you encounter failing tests unrelated to your changes:

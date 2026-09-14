@@ -9,17 +9,16 @@ import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
 
 /**
- * Derivation of the public base URL the client actually connected on, used by every absolute URL the
+ * Derivation of the base URL the client actually connected on, used by every absolute URL the
  * server hands out (OAuth metadata, share-content links). The host is taken from `X-Forwarded-Host` /
  * `Host` and the scheme from `X-Forwarded-Proto` / the listener scheme, so the URL is reachable across
- * all topologies (cloudflared, ngrok, Tailscale Funnel, router/DDNS).
+ * all topologies (Tailscale, LAN, reverse proxy).
  *
  * **Security rationale (forwarded-header trust) — by design:** the derivation trusts the client-settable
  * `X-Forwarded-*` headers, but the response is PER-CONNECTION, so a spoofed host only changes the
  * response sent back to the spoofer (no cross-client/cached poisoning): a token minted with a spoofed
- * `aud` is rejected at the real `/mcp` (aud-binding), the OAuth path requires a trusted tunnel, and
- * share links are returned to the calling agent over the same connection. A non-empty
- * `publicUrlOverride` pins the host and ignores forwarded headers entirely.
+ * `aud` is rejected at the real `/mcp` (aud-binding), and share links are returned to the calling
+ * agent over the same connection.
  */
 
 private const val HTTP_DEFAULT_PORT = 80
@@ -41,8 +40,8 @@ fun deriveBaseUrl(call: ApplicationCall): String {
             ?.takeIf { it.isNotEmpty() }
     // Use the raw Host header authority verbatim: it carries a port ONLY when the client actually
     // sent one. Reconstructing via host():port() would synthesize the local connection's scheme-default
-    // port (e.g. http→80) when Host has none, producing a bogus `https://host:80` behind an HTTPS tunnel
-    // (cloudflared/ngrok terminate TLS and forward plaintext, so the local scheme is http).
+    // port (e.g. http→80) when Host has none, producing a bogus `https://host:80` behind an HTTPS
+    // reverse proxy (the proxy terminates TLS and forwards plaintext, so the local scheme is http).
     val rawHost =
         call.request.headers["Host"]
             ?.substringBefore(',')
@@ -86,12 +85,6 @@ fun normalizeBaseUrl(raw: String): String {
         "$scheme://$host:$port"
     }
 }
-
-/** The override (when non-empty) wins over the request-derived base URL (also acts as a hostname pin). */
-fun effectiveBaseUrl(
-    call: ApplicationCall,
-    override: String,
-): String = override.trim().ifEmpty { null }?.let { normalizeBaseUrl(it) } ?: deriveBaseUrl(call)
 
 /** Coroutine-context element carrying the per-request base URL into MCP tool handlers. */
 class RequestBaseUrlElement(

@@ -14,7 +14,6 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerStatus
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
-import com.danielealbano.androidremotecontrolmcp.data.model.TunnelStatus
 import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.ServerLogRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
@@ -29,7 +28,6 @@ import com.danielealbano.androidremotecontrolmcp.mcp.oauth.OAuthServerDeps
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.LoggedToolRegistrar
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.McpToolUtils
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.ReferenceCountedToolCallIndicator
-import com.danielealbano.androidremotecontrolmcp.mcp.tools.ToolCallIndicator
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerAppManagementTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerFileTools
 import com.danielealbano.androidremotecontrolmcp.mcp.tools.registerGestureTools
@@ -70,7 +68,6 @@ import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileL
 import com.danielealbano.androidremotecontrolmcp.services.sharing.SharedContentInbox
 import com.danielealbano.androidremotecontrolmcp.services.storage.FileOperationProvider
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
-import com.danielealbano.androidremotecontrolmcp.services.tunnel.TunnelManager
 import com.danielealbano.androidremotecontrolmcp.ui.MainActivity
 import com.danielealbano.androidremotecontrolmcp.utils.NetworkUtils
 import com.danielealbano.androidremotecontrolmcp.utils.PermissionUtils
@@ -88,8 +85,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
 import java.security.KeyStore
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -126,8 +121,6 @@ class McpServerService : Service() {
     @Inject lateinit var screenshotAnnotator: ScreenshotAnnotator
 
     @Inject lateinit var screenshotEncoder: ScreenshotEncoder
-
-    @Inject lateinit var tunnelManager: TunnelManager
 
     @Inject lateinit var storageLocationProvider: StorageLocationProvider
 
@@ -182,7 +175,6 @@ class McpServerService : Service() {
     private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val serverActive = AtomicBoolean(false)
     private var mcpServer: McpServer? = null
-    private var tunnelObserverJob: Job? = null
     private var approvalObserverJob: Job? = null
 
     /**
@@ -346,50 +338,7 @@ class McpServerService : Service() {
                 ),
             )
 
-            // Start tunnel if remote access is enabled. A tunnel always targets an
-            // http://localhost origin, so it MUST NOT run while the server serves HTTPS.
-            if (config.httpsEnabled) {
-                Log.i(TAG, "Remote access tunnel disabled while HTTPS is enabled")
-                tunnelManager.stop()
-            } else {
-                @Suppress("TooGenericExceptionCaught")
-                try {
-                    tunnelManager.start(config.port)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to start tunnel (server continues without tunnel)", e)
-                }
-            }
-
-            // Observe tunnel status for logging
-            tunnelObserverJob =
-                coroutineScope.launch {
-                    tunnelManager.tunnelStatus.collect { status ->
-                        tunnelStatusLogMessage(status)?.let {
-                            serverLogRepository.log(ServerLogEntry.Type.TUNNEL, it)
-                        }
-                        when (status) {
-                            is TunnelStatus.Connected -> {
-                                Log.i(
-                                    TAG,
-                                    "Tunnel connected: ${status.endpoints.joinToString { it.url }} " +
-                                        "(provider: ${status.providerType})",
-                                )
-                            }
-
-                            is TunnelStatus.Error -> {
-                                Log.w(TAG, "Tunnel error: ${status.message}")
-                            }
-
-                            is TunnelStatus.Connecting -> {
-                                Log.i(TAG, "Tunnel connecting...")
-                            }
-
-                            is TunnelStatus.Disconnected -> {
-                                // No-op for initial state; logged at stop time
-                            }
-                        }
-                    }
-                }
+            // TEND-STRIP: remote-access startup removed (server binds local interfaces only).
 
             // Observe pending OAuth approvals and surface a single heads-up notification (the service
             // is already foregrounded by onStartCommand; this is a separate, collapsed notification).
@@ -413,22 +362,15 @@ class McpServerService : Service() {
     }
 
     /**
-     * Externally-reachable base URL for capability links: the tunnel URL when a tunnel is connected,
-     * otherwise the device LAN URL (`scheme://<device-ip>:<port>`).
+     * Device LAN base URL for capability links: `scheme://<device-ip>:<port>`.
      */
     private val currentBaseUrl: () -> String = {
-        val tunnel = tunnelManager.tunnelStatus.value
-        val tunnelUrl = (tunnel as? TunnelStatus.Connected)?.endpoints?.firstOrNull { it.valid }?.url
-        if (tunnelUrl != null) {
-            tunnelUrl
-        } else {
-            val cfg = activeConfig
-            val scheme = if (cfg?.httpsEnabled == true) "https" else "http"
-            val host =
-                NetworkUtils.getDeviceIpAddress(applicationContext) ?: cfg?.bindingAddress?.address ?: "127.0.0.1"
-            val port = cfg?.port ?: ServerConfig.DEFAULT_PORT
-            "$scheme://$host:$port"
-        }
+        val cfg = activeConfig
+        val scheme = if (cfg?.httpsEnabled == true) "https" else "http"
+        val host =
+            NetworkUtils.getDeviceIpAddress(applicationContext) ?: cfg?.bindingAddress?.address ?: "127.0.0.1"
+        val port = cfg?.port ?: ServerConfig.DEFAULT_PORT
+        "$scheme://$host:$port"
     }
 
     private fun registerAllTools(
@@ -559,31 +501,10 @@ class McpServerService : Service() {
             persistServerRunning(settingsRepository, false)
         }
 
-        // Cancel tunnel status observer before stopping the tunnel
-        tunnelObserverJob?.cancel()
-        tunnelObserverJob = null
-
         // Cancel the OAuth approval observer and clear any pending approval notification.
         approvalObserverJob?.cancel()
         approvalObserverJob = null
         OAuthApprovalNotifier.cancel(this)
-
-        // Stop tunnel first (with ANR-safe timeout).
-        // Worst-case blocking time: TUNNEL_STOP_TIMEOUT_MS (3s) + SHUTDOWN_GRACE_PERIOD_MS (1s)
-        // + SHUTDOWN_TIMEOUT_MS (5s) = ~9s total. This is well within the Android service
-        // onDestroy ANR threshold (~200s), so blocking the main thread here is acceptable.
-        @Suppress("TooGenericExceptionCaught")
-        try {
-            runBlocking {
-                withTimeout(TUNNEL_STOP_TIMEOUT_MS) {
-                    tunnelManager.stop()
-                }
-            }
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            Log.w(TAG, "Tunnel stop timed out after ${TUNNEL_STOP_TIMEOUT_MS}ms, proceeding with shutdown", e)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping tunnel", e)
-        }
 
         // Stop the Ktor server gracefully
         @Suppress("TooGenericExceptionCaught")
@@ -642,7 +563,6 @@ class McpServerService : Service() {
         const val NOTIFICATION_ID = 1001
         const val SHUTDOWN_GRACE_PERIOD_MS = 1000L
         const val SHUTDOWN_TIMEOUT_MS = 5000L
-        const val TUNNEL_STOP_TIMEOUT_MS = 3_000L
 
         /**
          * Shared server status flow. Collected by MainViewModel to update the UI.
@@ -697,13 +617,4 @@ internal fun privacyStatusLogMessage(status: PrivacyModeStatus): String =
         is PrivacyModeStatus.Disabled -> {
             "Privacy mode disabled"
         }
-    }
-
-/** Server-log message for a tunnel status transition; null when not logged by the observer. */
-internal fun tunnelStatusLogMessage(status: TunnelStatus): String? =
-    when (status) {
-        TunnelStatus.Connecting -> "Tunnel connecting…"
-        is TunnelStatus.Connected -> "Tunnel connected: ${status.endpoints.joinToString { it.url }}"
-        is TunnelStatus.Error -> "Tunnel error: ${status.message}"
-        TunnelStatus.Disconnected -> null // Logged by TunnelManager.stop()
     }

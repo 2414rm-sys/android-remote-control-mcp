@@ -202,8 +202,6 @@ abstract class ServiceModule {
     @Singleton
     abstract fun bindScreenCaptureProvider(impl: ScreenCaptureProviderImpl): ScreenCaptureProvider
 
-    // TEND-STRIP: cloudflare binary resolver binding removed (tunnel deleted).
-
     @Binds
     @Singleton
     abstract fun bindStorageLocationProvider(impl: StorageLocationProviderImpl): StorageLocationProvider

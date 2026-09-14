@@ -2,7 +2,7 @@ package com.danielealbano.androidremotecontrolmcp.mcp.oauth
 
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.mcp.canonicalResource
-import com.danielealbano.androidremotecontrolmcp.mcp.effectiveBaseUrl
+import com.danielealbano.androidremotecontrolmcp.mcp.deriveBaseUrl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
@@ -97,7 +97,7 @@ private suspend fun ApplicationCall.handleRefreshTokenGrant(
         respondOAuthError(HttpStatusCode.BadRequest, "invalid_grant")
         return
     }
-    val resource = canonicalResource(effectiveBaseUrl(this, deps.publicUrlOverride))
+    val resource = canonicalResource(deriveBaseUrl(this))
     val newJti = UUID.randomUUID().toString()
     deps.clientRepository.setRefreshJti(claims.clientId, newJti)
     deps.clientRepository.touchLastUsed(claims.clientId, deps.nowMs())

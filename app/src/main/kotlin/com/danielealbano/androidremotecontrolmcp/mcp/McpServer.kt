@@ -164,7 +164,7 @@ class McpServer(
             bearerTokenEnabled = config.bearerTokenEnabled
             expectedToken = config.bearerToken
             oauthEnabled = config.oauthEnabled
-            baseUrlOf = { effectiveBaseUrl(it, config.publicUrlOverride) }
+            baseUrlOf = { deriveBaseUrl(it) }
             validateOAuthToken = { token, resource -> accessValidator.validate(token, resource) }
             excludedPaths = setOf("/health", "/register", "/token", "/authorize", "/authorize/status")
             excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX, "/.well-known/")
@@ -201,7 +201,6 @@ class McpServer(
                 installOAuthRoutes(
                     OAuthRouteDeps(
                         oauth = oauth,
-                        publicUrlOverride = config.publicUrlOverride,
                         serverLog = serverLog,
                     ),
                 )
@@ -210,7 +209,7 @@ class McpServer(
 
         // MCP Stateless Streamable HTTP transport at /mcp, plus the per-request base-URL element
         // scoped to that route. See installMcpStatelessTransport for the rationale.
-        installMcpStatelessTransport(publicUrlOverride = config.publicUrlOverride) {
+        installMcpStatelessTransport {
             mcpSdkServer
         }
     }

@@ -20,23 +20,19 @@ import kotlinx.coroutines.withContext
  * session, so the SDK dispatches tool-call handlers inline in the request coroutine — which is why
  * wrapping [proceed] in `withContext` correctly reaches the handler.
  *
- * DNS-rebinding protection is disabled: requests arrive via a cloudflared/ngrok tunnel, so the
- * `Host` header is the tunnel hostname (not localhost) and the SDK's localhost-default validation
+ * DNS-rebinding protection is disabled: requests may arrive via a reverse proxy or the LAN,
+ * so the `Host` header can differ from localhost and the SDK's localhost-default validation
  * would reject all legitimate traffic. Bearer/OAuth authentication is the compensating control.
  *
  * Shared by [McpServer] and the integration tests so production and test wiring cannot drift.
  *
- * @param publicUrlOverride Pins the base URL host; empty means derive it from the request.
  * @param block Provider for the MCP [Server] instance to serve each request.
  */
-fun Application.installMcpStatelessTransport(
-    publicUrlOverride: String = "",
-    block: () -> Server,
-) {
+fun Application.installMcpStatelessTransport(block: () -> Server) {
     routing {
         route("/mcp") {
             intercept(ApplicationCallPipeline.Plugins) {
-                withContext(RequestBaseUrlElement(effectiveBaseUrl(call, publicUrlOverride))) {
+                withContext(RequestBaseUrlElement(deriveBaseUrl(call))) {
                     proceed()
                 }
             }

@@ -10,7 +10,7 @@ import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfi
 import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.OAuthClientRepositoryImpl
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
-import com.danielealbano.androidremotecontrolmcp.mcp.effectiveBaseUrl
+import com.danielealbano.androidremotecontrolmcp.mcp.deriveBaseUrl
 import com.danielealbano.androidremotecontrolmcp.mcp.installMcpBasePlugins
 import com.danielealbano.androidremotecontrolmcp.mcp.installMcpStatelessTransport
 import com.danielealbano.androidremotecontrolmcp.mcp.oauth.AuthorizationCodeStoreImpl
@@ -207,12 +207,10 @@ object McpIntegrationTestHelper {
             typeInputController = mockk(relaxed = true),
             screenshotAnnotator = mockk(relaxed = true),
             screenshotEncoder = mockk(relaxed = true),
-            cameraProvider = mockk(relaxed = true),
             nodeCache = mockk(relaxed = true),
             screenStateSnapshotCache = ScreenStateSnapshotCacheImpl(),
             intentDispatcher = mockk(relaxed = true),
             notificationProvider = mockk(relaxed = true),
-            locationProvider = mockk(relaxed = true),
             sharedContentInbox = mockk(relaxed = true),
             ephemeralFileLinkService = mockk(relaxed = true),
             privacyStatusFlow = statusFlow,
@@ -508,13 +506,11 @@ object McpIntegrationTestHelper {
      * the stateless Streamable HTTP transport. The test drives the DCR→authorize→approve→token→/mcp dance itself.
      *
      * @param bearerTokenEnabled When true (with [bearerToken]), exercises dual-accept.
-     * @param publicUrlOverride Pins the metadata/`aud` host (empty = request-derived).
      */
     suspend fun withOAuthTestApplication(
         deps: MockDependencies = createMockDependencies(),
         bearerTokenEnabled: Boolean = false,
         bearerToken: String = "",
-        publicUrlOverride: String = "",
         testBlock: suspend io.ktor.server.testing.ApplicationTestBuilder.(OAuthTestContext) -> Unit,
     ) {
         val sdkServer = createSdkServer(deps)
@@ -543,7 +539,7 @@ object McpIntegrationTestHelper {
                     this.bearerTokenEnabled = bearerTokenEnabled
                     expectedToken = bearerToken
                     oauthEnabled = true
-                    baseUrlOf = { effectiveBaseUrl(it, publicUrlOverride) }
+                    baseUrlOf = { deriveBaseUrl(it) }
                     validateOAuthToken = { token, resource -> accessValidator.validate(token, resource) }
                     excludedPaths = setOf("/health", "/register", "/token", "/authorize", "/authorize/status")
                     excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX, "/.well-known/")
@@ -560,12 +556,11 @@ object McpIntegrationTestHelper {
                                     approvalCoordinator = approvalCoordinator,
                                     geoIpResolver = { null },
                                 ),
-                            publicUrlOverride = publicUrlOverride,
                             serverLog = deps.serverLog,
                         ),
                     )
                 }
-                installMcpStatelessTransport(publicUrlOverride = publicUrlOverride) { sdkServer }
+                installMcpStatelessTransport { sdkServer }
             }
 
             val httpClient =

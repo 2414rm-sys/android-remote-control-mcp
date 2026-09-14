@@ -61,8 +61,6 @@ fun AccessSettingsScreen(
 ) {
     val context = LocalContext.current
     val serverConfig by viewModel.serverConfig.collectAsStateWithLifecycle()
-    val publicUrlOverride by viewModel.publicUrlOverrideInput.collectAsStateWithLifecycle()
-    val publicUrlError by viewModel.publicUrlOverrideError.collectAsStateWithLifecycle()
     val showDisableDialog by viewModel.showDisableAuthDialog.collectAsStateWithLifecycle()
 
     var showToken by remember { mutableStateOf(false) }
@@ -108,13 +106,6 @@ fun AccessSettingsScreen(
                     body = stringResource(R.string.access_no_auth_warning_body),
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                if (serverConfig.tunnelEnabled) {
-                    WarningCard(
-                        title = stringResource(R.string.access_internet_exposure_warning_title),
-                        body = stringResource(R.string.access_internet_exposure_warning_body),
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
             }
 
             // OAuth toggle
@@ -205,20 +196,6 @@ fun AccessSettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Public URL override
-            OutlinedTextField(
-                value = publicUrlOverride,
-                onValueChange = viewModel::setPublicUrlOverride,
-                label = { Text(stringResource(R.string.access_public_url_label)) },
-                supportingText = {
-                    Text(publicUrlError ?: stringResource(R.string.access_public_url_supporting))
-                },
-                isError = publicUrlError != null,
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
         }
     }
 }

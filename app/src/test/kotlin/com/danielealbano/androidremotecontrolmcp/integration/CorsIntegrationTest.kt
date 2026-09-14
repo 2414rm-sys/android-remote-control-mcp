@@ -1,6 +1,6 @@
 package com.danielealbano.androidremotecontrolmcp.integration
 
-import com.danielealbano.androidremotecontrolmcp.mcp.effectiveBaseUrl
+import com.danielealbano.androidremotecontrolmcp.mcp.deriveBaseUrl
 import com.danielealbano.androidremotecontrolmcp.mcp.installMcpBasePlugins
 import com.danielealbano.androidremotecontrolmcp.mcp.installMcpStatelessTransport
 import com.danielealbano.androidremotecontrolmcp.services.sharing.EphemeralFileLinkService
@@ -64,7 +64,7 @@ class CorsIntegrationTest {
                     expectedToken = McpIntegrationTestHelper.TEST_BEARER_TOKEN
                     this.oauthEnabled = oauthEnabled
                     validateOAuthToken = { _, _ -> false }
-                    baseUrlOf = { effectiveBaseUrl(it, "") }
+                    baseUrlOf = { deriveBaseUrl(it) }
                     excludedPaths = setOf("/health", "/register", "/token", "/authorize", "/authorize/status")
                     excludedPathPrefixes = setOf(EphemeralFileLinkService.PATH_PREFIX, "/.well-known/")
                 }

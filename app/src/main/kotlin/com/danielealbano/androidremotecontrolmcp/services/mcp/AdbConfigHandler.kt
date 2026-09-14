@@ -5,10 +5,8 @@ import android.content.Intent
 import android.util.Log
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
-import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
-import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.data.repository.ServerLogRepository
 import com.danielealbano.androidremotecontrolmcp.data.repository.SettingsRepository
 import com.danielealbano.androidremotecontrolmcp.services.storage.StorageLocationProvider
@@ -53,7 +51,6 @@ class AdbConfigHandler(
         applyBearerToken(intent)
         applyOauthEnabled(intent)
         applyBearerTokenEnabled(intent)
-        applyPublicUrlOverride(intent)
         applyBindingAddress(intent)
         applyPort(intent)
         applyAutoStartOnBoot(intent)
@@ -61,13 +58,6 @@ class AdbConfigHandler(
         applyHttpsEnabled(intent)
         applyCertificateSource(intent)
         applyCertificateHostname(intent)
-        applyTunnelEnabled(intent)
-        applyTunnelProvider(intent)
-        applyCloudflareTunnelMode(intent)
-        applyCloudflareTunnelToken(intent)
-        applyCloudflareTunnelExtraArgs(intent)
-        applyNgrokAuthtoken(intent)
-        applyNgrokDomain(intent)
         applyFileSizeLimit(intent)
         applyAllowHttpDownloads(intent)
         applyAllowUnverifiedHttpsCerts(intent)
@@ -112,22 +102,6 @@ class AdbConfigHandler(
                 "Bearer token authentication disabled; if OAuth is also disabled the server is UNAUTHENTICATED",
             )
         }
-    }
-
-    private suspend fun applyPublicUrlOverride(intent: Intent) {
-        if (!intent.hasExtra(EXTRA_PUBLIC_URL_OVERRIDE)) return
-        val value = intent.getStringExtra(EXTRA_PUBLIC_URL_OVERRIDE) ?: ""
-        settingsRepository.validatePublicUrlOverride(value).fold(
-            onSuccess = {
-                settingsRepository.updatePublicUrlOverride(it)
-                if (it.isEmpty()) {
-                    Log.i(TAG, "Public URL override cleared (auto-detect from request)")
-                } else {
-                    Log.i(TAG, "Public URL override updated")
-                }
-            },
-            onFailure = { Log.w(TAG, "Ignoring invalid public_url_override: ${it.message}") },
-        )
     }
 
     private suspend fun applyBindingAddress(intent: Intent) {
@@ -219,80 +193,6 @@ class AdbConfigHandler(
             },
             onFailure = { Log.w(TAG, "Ignoring invalid certificate_hostname '$value': ${it.message}") },
         )
-    }
-
-    private suspend fun applyTunnelEnabled(intent: Intent) {
-        if (!intent.hasExtra(EXTRA_TUNNEL_ENABLED)) return
-        val value = intent.getBooleanExtra(EXTRA_TUNNEL_ENABLED, false)
-        settingsRepository.updateTunnelEnabled(value)
-        Log.i(TAG, "Tunnel enabled updated to $value")
-    }
-
-    private suspend fun applyTunnelProvider(intent: Intent) {
-        val value = intent.getStringExtra(EXTRA_TUNNEL_PROVIDER) ?: return
-        val provider =
-            try {
-                TunnelProviderType.valueOf(value)
-            } catch (_: IllegalArgumentException) {
-                Log.w(
-                    TAG,
-                    "Ignoring invalid tunnel_provider '$value' " +
-                        "(valid: ${TunnelProviderType.entries.joinToString()})",
-                )
-                return
-            }
-        settingsRepository.updateTunnelProvider(provider)
-        Log.i(TAG, "Tunnel provider updated to $provider")
-    }
-
-    private suspend fun applyCloudflareTunnelMode(intent: Intent) {
-        val value = intent.getStringExtra(EXTRA_CLOUDFLARE_TUNNEL_MODE) ?: return
-        val mode =
-            try {
-                CloudflareTunnelMode.valueOf(value)
-            } catch (_: IllegalArgumentException) {
-                Log.w(
-                    TAG,
-                    "Ignoring invalid cloudflare_tunnel_mode '$value' " +
-                        "(valid: ${CloudflareTunnelMode.entries.joinToString()})",
-                )
-                return
-            }
-        settingsRepository.updateCloudflareTunnelMode(mode)
-        Log.i(TAG, "Cloudflare tunnel mode updated to $mode")
-    }
-
-    private suspend fun applyCloudflareTunnelToken(intent: Intent) {
-        val value = intent.getStringExtra(EXTRA_CLOUDFLARE_TUNNEL_TOKEN) ?: return
-        if (value.isEmpty()) {
-            Log.w(TAG, "Ignoring empty cloudflare_tunnel_token")
-            return
-        }
-        settingsRepository.updateCloudflareTunnelToken(value)
-        Log.i(TAG, "Cloudflare tunnel token updated (length=${value.length})")
-    }
-
-    private suspend fun applyCloudflareTunnelExtraArgs(intent: Intent) {
-        val value = intent.getStringExtra(EXTRA_CLOUDFLARE_TUNNEL_EXTRA_ARGS) ?: return
-        settingsRepository.updateCloudflareTunnelExtraArgs(value)
-        Log.i(TAG, "Cloudflare tunnel extra arguments updated (length=${value.length})")
-    }
-
-    private suspend fun applyNgrokAuthtoken(intent: Intent) {
-        val value = intent.getStringExtra(EXTRA_NGROK_AUTHTOKEN) ?: return
-        if (value.isEmpty()) {
-            Log.w(TAG, "Ignoring empty ngrok_authtoken")
-            return
-        }
-        settingsRepository.updateNgrokAuthtoken(value)
-        Log.i(TAG, "ngrok authtoken updated (length=${value.length})")
-    }
-
-    private suspend fun applyNgrokDomain(intent: Intent) {
-        if (!intent.hasExtra(EXTRA_NGROK_DOMAIN)) return
-        val value = intent.getStringExtra(EXTRA_NGROK_DOMAIN) ?: ""
-        settingsRepository.updateNgrokDomain(value)
-        Log.i(TAG, "ngrok domain updated to '$value'")
     }
 
     private suspend fun applyFileSizeLimit(intent: Intent) {
@@ -404,7 +304,6 @@ class AdbConfigHandler(
         internal const val EXTRA_BEARER_TOKEN = "bearer_token"
         internal const val EXTRA_OAUTH_ENABLED = "oauth_enabled"
         internal const val EXTRA_BEARER_TOKEN_ENABLED = "bearer_token_enabled"
-        internal const val EXTRA_PUBLIC_URL_OVERRIDE = "public_url_override"
         internal const val EXTRA_BINDING_ADDRESS = "binding_address"
         internal const val EXTRA_PORT = "port"
         internal const val EXTRA_AUTO_START_ON_BOOT = "auto_start_on_boot"
@@ -412,13 +311,6 @@ class AdbConfigHandler(
         internal const val EXTRA_HTTPS_ENABLED = "https_enabled"
         internal const val EXTRA_CERTIFICATE_SOURCE = "certificate_source"
         internal const val EXTRA_CERTIFICATE_HOSTNAME = "certificate_hostname"
-        internal const val EXTRA_TUNNEL_ENABLED = "tunnel_enabled"
-        internal const val EXTRA_TUNNEL_PROVIDER = "tunnel_provider"
-        internal const val EXTRA_CLOUDFLARE_TUNNEL_MODE = "cloudflare_tunnel_mode"
-        internal const val EXTRA_CLOUDFLARE_TUNNEL_TOKEN = "cloudflare_tunnel_token"
-        internal const val EXTRA_CLOUDFLARE_TUNNEL_EXTRA_ARGS = "cloudflare_tunnel_extra_args"
-        internal const val EXTRA_NGROK_AUTHTOKEN = "ngrok_authtoken"
-        internal const val EXTRA_NGROK_DOMAIN = "ngrok_domain"
         internal const val EXTRA_FILE_SIZE_LIMIT_MB = "file_size_limit_mb"
         internal const val EXTRA_ALLOW_HTTP_DOWNLOADS = "allow_http_downloads"
         internal const val EXTRA_ALLOW_UNVERIFIED_HTTPS_CERTS = "allow_unverified_https_certs"

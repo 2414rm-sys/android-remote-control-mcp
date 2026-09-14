@@ -4,14 +4,12 @@ import com.danielealbano.androidremotecontrolmcp.data.model.AvailableUpdate
 import com.danielealbano.androidremotecontrolmcp.data.model.BindingAddress
 import com.danielealbano.androidremotecontrolmcp.data.model.BuiltinPermissions
 import com.danielealbano.androidremotecontrolmcp.data.model.CertificateSource
-import com.danielealbano.androidremotecontrolmcp.data.model.CloudflareTunnelMode
 import com.danielealbano.androidremotecontrolmcp.data.model.PlaceholderFormat
 import com.danielealbano.androidremotecontrolmcp.data.model.PrivacyModeConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.RedactionMode
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerConfig
 import com.danielealbano.androidremotecontrolmcp.data.model.StorageLocation
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
-import com.danielealbano.androidremotecontrolmcp.data.model.TunnelProviderType
 import com.danielealbano.androidremotecontrolmcp.privacy.PiiCategory
 import kotlinx.coroutines.flow.Flow
 
@@ -76,21 +74,6 @@ interface SettingsRepository : EventChannelSettings {
      */
     suspend fun updateBearerTokenEnabled(enabled: Boolean)
 
-    /** Updates the optional public-URL override (empty = auto-detect from the request). */
-    suspend fun updatePublicUrlOverride(url: String)
-
-    /**
-     * Validates a public-URL override.
-     *
-     * UNLIKE [validateEndpointUrl] (which rejects blank), an empty value IS valid here and means
-     * auto-detect → [Result.success] with `""`; otherwise the same http/https protocol check applies.
-     *
-     * This is a pure validation function with no I/O; it is intentionally non-suspending.
-     *
-     * @return [Result.success] with the validated URL (possibly empty), or [Result.failure].
-     */
-    fun validatePublicUrlOverride(url: String): Result<String>
-
     /**
      * Runs the one-time bearer-enabled migration AND the bearer-token auto-generation.
      *
@@ -152,27 +135,6 @@ interface SettingsRepository : EventChannelSettings {
      * @return [Result.success] with the validated hostname, or [Result.failure] with an [IllegalArgumentException].
      */
     fun validateCertificateHostname(hostname: String): Result<String>
-
-    /** Updates the tunnel enabled toggle. */
-    suspend fun updateTunnelEnabled(enabled: Boolean)
-
-    /** Updates the tunnel provider type. */
-    suspend fun updateTunnelProvider(provider: TunnelProviderType)
-
-    /** Updates the ngrok authtoken. */
-    suspend fun updateNgrokAuthtoken(authtoken: String)
-
-    /** Updates the ngrok domain (optional, empty string means auto-assigned). */
-    suspend fun updateNgrokDomain(domain: String)
-
-    /** Updates the Cloudflare tunnel mode (Free quick tunnel vs token-based named tunnel). */
-    suspend fun updateCloudflareTunnelMode(mode: CloudflareTunnelMode)
-
-    /** Updates the Cloudflare tunnel token (required when using token mode). */
-    suspend fun updateCloudflareTunnelToken(token: String)
-
-    /** Updates the optional extra command-line arguments for Cloudflare tunnel. */
-    suspend fun updateCloudflareTunnelExtraArgs(extraArgs: String)
 
     /** Updates the file size limit for file operations (in MB). */
     suspend fun updateFileSizeLimit(limitMb: Int)

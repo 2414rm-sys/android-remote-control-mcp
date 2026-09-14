@@ -3,7 +3,7 @@ package com.danielealbano.androidremotecontrolmcp.mcp.oauth
 import com.danielealbano.androidremotecontrolmcp.data.model.ServerLogEntry
 import com.danielealbano.androidremotecontrolmcp.geo.GeoLocation
 import com.danielealbano.androidremotecontrolmcp.mcp.canonicalResource
-import com.danielealbano.androidremotecontrolmcp.mcp.effectiveBaseUrl
+import com.danielealbano.androidremotecontrolmcp.mcp.deriveBaseUrl
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -50,14 +50,14 @@ fun Route.installOAuthRoutes(deps: OAuthRouteDeps) {
 
 private suspend fun ApplicationCall.respondProtectedResourceMetadata(deps: OAuthRouteDeps) {
     respondText(
-        OAuthMetadata.protectedResourceMetadata(effectiveBaseUrl(this, deps.publicUrlOverride)),
+        OAuthMetadata.protectedResourceMetadata(deriveBaseUrl(this)),
         ContentType.Application.Json,
     )
 }
 
 private suspend fun ApplicationCall.respondAuthorizationServerMetadata(deps: OAuthRouteDeps) {
     respondText(
-        OAuthMetadata.authorizationServerMetadata(effectiveBaseUrl(this, deps.publicUrlOverride)),
+        OAuthMetadata.authorizationServerMetadata(deriveBaseUrl(this)),
         ContentType.Application.Json,
     )
 }
@@ -133,7 +133,7 @@ private suspend fun ApplicationCall.handleAuthorize(
     val safeClient = client!!
     val safeClientId = clientId!!
     val safeRedirectUri = redirectUri!!
-    val canonical = canonicalResource(effectiveBaseUrl(this, deps.publicUrlOverride))
+    val canonical = canonicalResource(deriveBaseUrl(this))
     val state = params["state"].orEmpty()
     val paramError = authorizeParamError(params, canonical)
     if (paramError != null) {

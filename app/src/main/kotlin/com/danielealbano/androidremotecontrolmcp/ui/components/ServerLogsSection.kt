@@ -125,7 +125,6 @@ private fun ServerLogEntryRow(entry: ServerLogEntry) {
             }
         }
 
-        ServerLogEntry.Type.TUNNEL,
         ServerLogEntry.Type.SERVER,
         ServerLogEntry.Type.OAUTH,
         ServerLogEntry.Type.AUTH,
@@ -174,8 +173,8 @@ private fun ServerLogsSectionPreview() {
                     ),
                     ServerLogEntry(
                         timestamp = System.currentTimeMillis(),
-                        type = ServerLogEntry.Type.TUNNEL,
-                        message = "Tunnel connected: https://random-words.trycloudflare.com",
+                        type = ServerLogEntry.Type.SERVER,
+                        message = "Server started on 127.0.0.1:8080",
                     ),
                 ),
             onShowMore = {},

@@ -114,10 +114,10 @@ class OAuthFlowIntegrationTest {
     @DisplayName("metadata reflects X-Forwarded-Host and -Proto")
     fun metadataReflectsForwarded() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = "") { _ ->
+            McpIntegrationTestHelper.withOAuthTestApplication { _ ->
                 val resp =
                     client.get("/.well-known/oauth-protected-resource/mcp") {
-                        header("X-Forwarded-Host", "tunnel.example")
+                        header("X-Forwarded-Host", "proxy.example")
                         header("X-Forwarded-Proto", "https")
                     }
                 val resource =
@@ -125,29 +125,9 @@ class OAuthFlowIntegrationTest {
                         .parseToJsonElement(resp.bodyAsText())
                         .jsonObject["resource"]!!
                         .jsonPrimitive.content
-                assertEquals("https://tunnel.example/mcp", resource)
+                assertEquals("https://proxy.example/mcp", resource)
             }
         }
-
-    @Test
-    @DisplayName("metadata honors publicUrlOverride")
-    fun metadataHonorsOverride() =
-        runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = "https://pinned.host") { _ ->
-                val resp =
-                    client.get("/.well-known/oauth-protected-resource/mcp") {
-                        header("X-Forwarded-Host", "tunnel.example")
-                        header("X-Forwarded-Proto", "https")
-                    }
-                val resource =
-                    Json
-                        .parseToJsonElement(resp.bodyAsText())
-                        .jsonObject["resource"]!!
-                        .jsonPrimitive.content
-                assertEquals("https://pinned.host/mcp", resource)
-            }
-        }
-
     // ── full dance + token grants ───────────────────────────────────────────
 
     @Test
@@ -156,7 +136,7 @@ class OAuthFlowIntegrationTest {
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery { deps.actionExecutor.tap(any(), any()) } returns Result.success(Unit)
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { ctx ->
                 val clientId = register(client)
                 val tokens = danceToTokens(ctx, clientId, includeResource = true)
                 val access = tokens.access
@@ -208,7 +188,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("authorize rejects non-S256 challenge method")
     fun authorizeRejectsNonS256() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { _ ->
+            McpIntegrationTestHelper.withOAuthTestApplication { _ ->
                 val clientId = register(client)
                 val noRedirect = createNoRedirectClient()
                 val resp = authorize(noRedirect, clientId, AuthorizeOptions(challengeMethod = "plain"))
@@ -221,7 +201,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("token rejects wrong PKCE verifier")
     fun tokenRejectsWrongVerifier() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val code = danceToCode(ctx, clientId, includeResource = true)
                 val resp = tokenRequest(client, clientId, code, verifier = "wrong-verifier", includeResource = true)
@@ -234,7 +214,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("token rejects client_id mismatch against code")
     fun tokenRejectsClientMismatch() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val code = danceToCode(ctx, clientId, includeResource = true)
                 val resp = tokenRequest(client, "arc-other", code, verifier = VERIFIER, includeResource = true)
@@ -247,7 +227,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("token rejects missing client_id")
     fun tokenRejectsMissingClientId() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val code = danceToCode(ctx, clientId, includeResource = true)
                 val resp =
@@ -272,7 +252,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("replayed auth code rejected")
     fun replayedCodeRejected() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val code = danceToCode(ctx, clientId, includeResource = true)
                 val first = tokenRequest(client, clientId, code, verifier = VERIFIER, includeResource = true)
@@ -287,7 +267,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("refresh_token rotates and old jti rejected")
     fun refreshRotates() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val tokens = danceToTokens(ctx, clientId, includeResource = true)
                 val refreshed = refreshRequest(client, clientId, tokens.refresh)
@@ -304,7 +284,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("revoked client token rejected on /mcp")
     fun revokedClientRejected() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val tokens = danceToTokens(ctx, clientId, includeResource = true)
                 ctx.clientRepository.revoke(clientId)
@@ -321,7 +301,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("wrong-aud access token rejected on /mcp")
     fun wrongAudRejected() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val registered = ctx.clientRepository.register("Claude", listOf(REDIRECT), "web", null, 0L)
                 val token = ctx.tokenService.issueAccessToken(registered.clientId, "https://other.host/mcp")
                 val resp =
@@ -340,7 +320,6 @@ class OAuthFlowIntegrationTest {
             McpIntegrationTestHelper.withOAuthTestApplication(
                 bearerTokenEnabled = true,
                 bearerToken = "static-tok",
-                publicUrlOverride = OVERRIDE,
             ) { _ ->
                 val resp =
                     client.post("/mcp") {
@@ -365,7 +344,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("authorize rejects present-but-mismatched resource")
     fun authorizeRejectsMismatchedResource() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { _ ->
+            McpIntegrationTestHelper.withOAuthTestApplication { _ ->
                 val clientId = register(client)
                 val noRedirect = createNoRedirectClient()
                 val resp =
@@ -381,7 +360,7 @@ class OAuthFlowIntegrationTest {
         runTest {
             val deps = McpIntegrationTestHelper.createMockDependencies()
             coEvery { deps.actionExecutor.tap(any(), any()) } returns Result.success(Unit)
-            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps, publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication(deps = deps) { ctx ->
                 val clientId = register(client)
                 val tokens = danceToTokens(ctx, clientId, includeResource = false)
                 val mcpClient = connectMcp(tokens.access)
@@ -398,7 +377,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("token rejects present-but-mismatched resource")
     fun tokenRejectsMismatchedResource() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val code = danceToCode(ctx, clientId, includeResource = true)
                 val resp =
@@ -425,7 +404,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("authorize with disallowed redirect_uri returns 400 HTML no Location")
     fun authorizeDisallowedRedirect400() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { _ ->
+            McpIntegrationTestHelper.withOAuthTestApplication { _ ->
                 // Register with a localhost redirect, then request authorize for the Claude callback (not registered).
                 val clientId = register(client, redirectUri = "http://localhost/cb")
                 val noRedirect = createNoRedirectClient()
@@ -440,7 +419,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("last-used updated once then throttled across two /mcp calls")
     fun lastUsedDebounced() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 // Mint a token directly (no /token grant) so the only touches come from the /mcp path.
                 val registered = ctx.clientRepository.register("Claude", listOf(REDIRECT), "web", null, 0L)
                 val token = ctx.tokenService.issueAccessToken(registered.clientId, CANONICAL)
@@ -458,7 +437,7 @@ class OAuthFlowIntegrationTest {
     @DisplayName("authorize redirect percent-encodes state")
     fun authorizeEncodesState() =
         runTest {
-            McpIntegrationTestHelper.withOAuthTestApplication(publicUrlOverride = OVERRIDE) { ctx ->
+            McpIntegrationTestHelper.withOAuthTestApplication { ctx ->
                 val clientId = register(client)
                 val rawState = "a&b=c d"
                 authorize(client, clientId, AuthorizeOptions(state = rawState))
@@ -647,8 +626,7 @@ class OAuthFlowIntegrationTest {
 
     private companion object {
         const val REDIRECT = "https://claude.ai/api/mcp/auth_callback"
-        const val OVERRIDE = "https://test.host"
-        const val CANONICAL = "https://test.host/mcp"
+        const val CANONICAL = "http://localhost/mcp"
 
         // RFC 7636 Appendix B PKCE test vector.
         const val VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"

@@ -9,14 +9,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Collaborators for the OAuth HTTP layer. [nowMs] is injectable for tests; [publicUrlOverride] pins the
- * host used by every metadata/`aud`/redirect (empty = auto-detect). Wraps [OAuthServerDeps] with
+ * Collaborators for the OAuth HTTP layer. [nowMs] is injectable for tests. Wraps [OAuthServerDeps] with
  * delegating getters so the constructor stays within detekt's `LongParameterList` threshold while
  * carrying the extra [serverLog] sink (no `@Suppress` needed).
  */
 class OAuthRouteDeps(
     private val oauth: OAuthServerDeps,
-    val publicUrlOverride: String,
     val serverLog: ServerLogRepository,
 ) {
     val clientRepository: OAuthClientRepository get() = oauth.oauthClientRepository
@@ -30,7 +28,7 @@ class OAuthRouteDeps(
 }
 
 /**
- * Best-effort source IP of the request: a tunnel's forwarded header (`CF-Connecting-IP` then the first
+ * Best-effort source IP of the request: a proxy's forwarded header (`CF-Connecting-IP` then the first
  * `X-Forwarded-For` hop) if present, otherwise the socket peer. Header values are client-settable, but the
  * IP is informational and the response is per-connection (see RequestBaseUrl's trust rationale).
  */

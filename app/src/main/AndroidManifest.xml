@@ -27,7 +27,7 @@
 
     <!-- TEND-STRIP: camera, microphone, location, and media permissions removed.
          This build is Tailscale-only device control: Accessibility + network.
-         No public tunnels, no media/camera/mic/location access. -->
+         No public ingress, no media/camera/mic/location access. -->
 
     <application
         android:name=".McpApplication"

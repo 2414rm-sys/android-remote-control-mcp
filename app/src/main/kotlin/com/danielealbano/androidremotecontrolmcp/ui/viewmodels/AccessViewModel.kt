@@ -13,15 +13,14 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Backs the Access settings screen: the two auth toggles, the bearer token, and the public-URL
- * override. Runs the one-time auth-model migration in [init] before exposing state so the screen never
- * shows un-migrated defaults. Disabling the last remaining auth method emits a confirm-needed event
- * (UNCONDITIONAL — not gated on binding/tunnel); the change applies only after [confirmDisableLastAuth].
+ * Backs the Access settings screen: the two auth toggles and the bearer token. Runs the one-time
+ * auth-model migration in [init] before exposing state so the screen never shows un-migrated defaults.
+ * Disabling the last remaining auth method emits a confirm-needed event (UNCONDITIONAL — not gated
+ * on binding); the change applies only after [confirmDisableLastAuth].
  */
 @HiltViewModel
 class AccessViewModel
@@ -33,12 +32,6 @@ class AccessViewModel
         private val _serverConfig = MutableStateFlow(ServerConfig())
         val serverConfig: StateFlow<ServerConfig> = _serverConfig.asStateFlow()
 
-        private val _publicUrlOverrideInput = MutableStateFlow("")
-        val publicUrlOverrideInput: StateFlow<String> = _publicUrlOverrideInput.asStateFlow()
-
-        private val _publicUrlOverrideError = MutableStateFlow<String?>(null)
-        val publicUrlOverrideError: StateFlow<String?> = _publicUrlOverrideError.asStateFlow()
-
         private val _showDisableAuthDialog = MutableStateFlow(false)
         val showDisableAuthDialog: StateFlow<Boolean> = _showDisableAuthDialog.asStateFlow()
 
@@ -47,7 +40,6 @@ class AccessViewModel
         init {
             viewModelScope.launch(ioDispatcher) {
                 settingsRepository.ensureAuthModelMigrated()
-                _publicUrlOverrideInput.value = settingsRepository.serverConfig.first().publicUrlOverride
                 settingsRepository.serverConfig.collect { _serverConfig.value = it }
             }
         }
@@ -84,17 +76,6 @@ class AccessViewModel
 
         fun regenerateBearerToken() {
             viewModelScope.launch(ioDispatcher) { settingsRepository.generateNewBearerToken() }
-        }
-
-        fun setPublicUrlOverride(url: String) {
-            _publicUrlOverrideInput.value = url
-            val result = settingsRepository.validatePublicUrlOverride(url)
-            if (result.isFailure) {
-                _publicUrlOverrideError.value = result.exceptionOrNull()?.message
-                return
-            }
-            _publicUrlOverrideError.value = null
-            viewModelScope.launch(ioDispatcher) { settingsRepository.updatePublicUrlOverride(url) }
         }
 
         fun copyBearerToken(context: Context) {

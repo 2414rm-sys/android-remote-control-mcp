@@ -13,7 +13,7 @@ import javax.xml.parsers.DocumentBuilderFactory
  *
  * An exported component with no `android:permission` is reachable by every app installed on the
  * device, with no permission of its own. For the ADB-facing configuration surface that is a
- * privilege escalation: a permissionless app could disable authentication, repoint the tunnel at
+ * privilege escalation: a permissionless app could disable authentication, repoint the server at
  * an attacker endpoint and enable boot persistence (GHSA-v82h-m32h-3j39).
  *
  * These tests parse the checked-in manifests directly — no Robolectric, no device — so a component

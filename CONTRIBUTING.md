@@ -30,9 +30,6 @@ See [docs/PROJECT.md](docs/PROJECT.md) for the complete project conventions.
 - **Android SDK** with API 34 (Android 14)
 - **Android NDK** (for cross-compiling native binaries; install via SDK Manager: `sdkmanager "ndk;<version>"`)
 - **Gradle** 8.x (wrapper included, no global install needed)
-- **Go** (for compiling cloudflared tunnel binary; install from [go.dev/dl](https://go.dev/dl/))
-- **Rust/cargo** (for compiling ngrok native library; install from [rustup.rs](https://rustup.rs/))
-- **Maven** (for compiling ngrok Java library; install from [maven.apache.org](https://maven.apache.org/install.html))
 
 ### For Running
 - Android device or emulator running **Android 13+** (API 33+), targeting **Android 14** (API 34)
@@ -98,7 +95,6 @@ make test-integration
 
 Runs JVM-based integration tests using Ktor `testApplication` (no device or emulator required). Tests the full HTTP stack: authentication, JSON-RPC protocol, tool dispatch for all 12 tool categories, and error handling.
 
-> **Note**: Some integration tests (e.g., `NgrokTunnelIntegrationTest`) require environment variables. Copy `.env.example` to `.env` and fill in the required values. The Makefile sources `.env` automatically.
 
 ### E2E Tests
 
@@ -159,8 +155,6 @@ graph TB
             McpServer["McpServer (Ktor)"]
             McpServer -->|"Streamable HTTP /mcp"| SDK["SDK Server (MCP Kotlin SDK)"]
             SDK -->|"57 MCP Tools"| Tools["Tool Handlers"]
-            TunnelMgr["TunnelManager (optional)"]
-            TunnelMgr -->|"Cloudflare / ngrok"| PublicURL["Public HTTPS URL"]
         end
 
         subgraph Accessibility["McpAccessibilityService"]

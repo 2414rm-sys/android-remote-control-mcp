@@ -57,7 +57,6 @@ The app runs directly on your Android device (or emulator) and exposes an HTTP s
 - Auto-generated self-signed TLS certificates (or custom certificate upload)
 - Configurable binding: localhost (127.0.0.1) or network (0.0.0.0)
 - Auto-start on boot
-- Remote access tunnels via Cloudflare Quick Tunnels or ngrok (public HTTPS URL)
 
 ### 57 MCP Tools across 14 Categories
 
@@ -70,12 +69,11 @@ See [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) for the full tool reference with inpu
 ### Android App
 - Material Design 3 UI with tabbed layout (Server / Settings / About) and dark mode
 - Server status monitoring (running/stopped) with permission warning banner
-- Connection info display (IP, port, token, tunnel URL)
+- Connection info display (IP, port, token)
 - Per-tool and per-parameter permissions (enable/disable individual MCP tools)
 - Permission management (Accessibility, Notifications, Camera, Microphone)
-- Remote access tunnel configuration (Cloudflare / ngrok)
 - Storage location management (automatic locations + SAF authorization for file tools)
-- Server log viewer (MCP tool calls, tunnel events)
+- Server log viewer (MCP tool calls, server events)
 - Headless setup via ADB (configure, grant permissions, start/stop server without UI)
 
 ### Comparison with Alternatives
@@ -100,7 +98,7 @@ See [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) for the full tool reference with inpu
 [adb-mcp]: https://github.com/srmorete/adb-mcp
 [droidrun-mcp]: https://github.com/chukfinley/droidrun-mcp-server
 
-Most alternatives rely on ADB running on a host machine, which means a USB cable or local network connection and a computer sitting next to the phone. This project runs entirely on the device itself, so you can expose the MCP endpoint through a tunnel and control your phone from anywhere.
+Most alternatives rely on ADB running on a host machine, which means a USB cable or local network connection and a computer sitting next to the phone. This project runs entirely on the device itself, so you can reach the MCP endpoint over your LAN or Tailscale tailnet and control your phone from anywhere on your own network.
 
 On the token efficiency side, ADB-based tools typically return raw `uiautomator` XML dumps which can easily be 10-50x more verbose than the compact representation used here. Combined with numbered screenshot annotations, configurable image quality, and the ability to disable tools you don't need (every tool definition costs tokens on every turn), this significantly reduces the per-interaction cost in agentic loops.
 
@@ -161,7 +159,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for full build requirements and instructi
 
 The server starts on `http://127.0.0.1:8080` by default. The connection info (IP, port, token, URL) is displayed on the Server tab.
 
-> **Note**: `127.0.0.1` refers to the phone's localhost, not your computer. To connect from your computer, use [adb port forwarding](#using-with-adb-port-forwarding), bind to `0.0.0.0` (network mode), or enable a [remote access tunnel](#using-remote-access-tunnels).
+> **Note**: `127.0.0.1` refers to the phone's localhost, not your computer. To connect from your computer, use [adb port forwarding](#using-with-adb-port-forwarding), bind to `0.0.0.0` (network mode), or connect over your [Tailscale tailnet](#using-over-tailscale).
 
 ---
 
@@ -230,37 +228,35 @@ Add the server to your `.mcp.json` configuration file:
 }
 ```
 
-Replace `DEVICE_IP`, `PORT`, and `YOUR_TOKEN` with the values shown in the app's Server tab. If the server is bound to localhost (default), you'll need [adb port forwarding](#using-with-adb-port-forwarding) or a [remote access tunnel](#using-remote-access-tunnels) to connect.
+Replace `DEVICE_IP`, `PORT`, and `YOUR_TOKEN` with the values shown in the app's Server tab. If the server is bound to localhost (default), you'll need [adb port forwarding](#using-with-adb-port-forwarding) to connect from your computer.
 
 > **Note for clients without custom-header support:** if your MCP client cannot send an `Authorization` header and does not support OAuth, you can turn off both auth methods in the app (**Settings → Access** — disable Bearer token and OAuth). The app warns and asks you to confirm, because the server is then **open**: anyone who can reach it has full control. Only do this on a network you trust.
 
 ### Connect from Claude.ai & Claude Desktop (Custom Connector, OAuth)
 
-Claude.ai (web) and Claude Desktop connect as a **custom connector** (remote MCP) using OAuth 2.1 — the app is its own OAuth Authorization Server, so no external account or pre-registration is needed. This requires the server to be reachable over a **public HTTPS URL**, so you must first enable a [remote access tunnel](#using-remote-access-tunnels) — a `localhost`/LAN address or `adb` port-forward will **not** work.
+Claude.ai (web) and Claude Desktop connect as a **custom connector** (remote MCP) using OAuth 2.1 — the app is its own OAuth Authorization Server, so no external account or pre-registration is needed. This requires the server to be reachable over **HTTPS**. This build has no built-in tunnel: reach it over your [Tailscale tailnet](#using-over-tailscale) (works for Claude Desktop on the same tailnet) or put your own reverse proxy in front of it for Claude.ai web — a plain `localhost`/LAN address or `adb` port-forward will **not** work for remote connectors.
 
 1. **OAuth is enabled by default** — no action needed (if you previously disabled it, re-enable it under **Settings → Access**). The bearer token stays enabled too; both are accepted.
-2. Open **Settings → Tunnel**, enable **Remote Access** (Cloudflare Quick Tunnels needs no account), and start the server. Copy the public `https://…` URL from the Server tab and append `/mcp` (e.g. `https://your-tunnel.trycloudflare.com/mcp`).
+2. **Enable HTTPS** under **Settings → Access** and start the server. Copy the server URL from the Server tab and append `/mcp` (e.g. `https://<device>.<tailnet>.ts.net:8080/mcp` on your Tailscale tailnet).
 3. In Claude, open **[Customize → Connectors → Add custom connector](https://claude.ai/customize/connectors?modal=add-custom-connector)**, paste the `https://…/mcp` URL, and **leave the OAuth Client ID and Client Secret blank** (the app uses Dynamic Client Registration). Click **Add**.
 4. Claude opens a browser approval page showing a **2-digit code**. On the device, tap the heads-up notification — or, if the Notifications permission is off, open the app's **Server** screen and tap the **pending approvals** card — to open the approval screen, confirm the code matches, and **Approve**.
 5. Manage or revoke connected clients any time under **Settings → Access → Connected clients**. Revoking immediately invalidates that client's tokens.
 
-> **Public URL override (optional):** if your tunnel/host topology needs a fixed public host (or you bind to `0.0.0.0` without a trusted proxy), set a **Public URL override** in Settings → Access so OAuth metadata and links use a stable host.
-
 Custom connectors are available on the Free (1 connector), Pro, Max, Team, and Enterprise plans (currently in beta).
 
-> ⚠️ **Security:** treat the public tunnel URL as sensitive, approve only connections you initiated (verify the 2-digit code), revoke clients you no longer use, and stop the tunnel and server when you are done. Never point it at a device holding sensitive data.
+> ⚠️ **Security:** treat the server URL as sensitive, approve only connections you initiated (verify the 2-digit code), revoke clients you no longer use, and stop the server when you are done. Never expose a device holding sensitive data.
 
 ### Connect from ChatGPT (Custom Connector, OAuth)
 
-ChatGPT connects to the server as a **custom MCP connector** using the same self-contained OAuth 2.1 flow. As with Claude, the server must be reachable over a **public HTTPS URL**, so enable a [remote access tunnel](#using-remote-access-tunnels) first — a `localhost`/LAN address or `adb` port-forward will **not** work. Custom connectors require a paid plan (Plus, Pro, Business, Enterprise, or Edu — not Free) and are set up from the **ChatGPT web app**.
+ChatGPT connects to the server as a **custom MCP connector** using the same self-contained OAuth 2.1 flow. As with Claude, the server must be reachable over **HTTPS** — reach it over your [Tailscale tailnet](#using-over-tailscale) or put your own reverse proxy in front of it; a `localhost` address or `adb` port-forward will **not** work. Custom connectors require a paid plan (Plus, Pro, Business, Enterprise, or Edu — not Free) and are set up from the **ChatGPT web app**.
 
 1. **Enable Developer mode** — in ChatGPT on the web, open **Settings → Connectors → Advanced settings** (labelled **Apps & Connectors** on some builds) and turn on **Developer mode**.
-2. **Start the tunnel** — same as the Claude flow above: OAuth stays enabled by default, turn on **Remote Access** under Settings → Tunnel, start the server, and copy the public `https://…/mcp` URL from the Server tab.
+2. **Start the server** — same as the Claude flow above: OAuth stays enabled by default, enable HTTPS, start the server, and copy the `https://…/mcp` URL from the Server tab.
 3. **Add the connector** — open **Settings → Connectors → Create**, give it a name and description, paste the `https://…/mcp` URL, select **OAuth** as the authentication method, and leave any Client ID / Client Secret blank (the app self-registers clients via Dynamic Client Registration).
 4. **Approve on the device** — ChatGPT starts the OAuth flow. Tap the heads-up notification — or, if the Notifications permission is off, open the app's **Server** screen and tap the **pending approvals** card — confirm the 2-digit code matches, and **Approve** (identical to the Claude approval step).
 5. Manage or revoke the connected client any time under **Settings → Access → Connected clients** in the app.
 
-> ⚠️ **Security:** the same cautions apply — treat the tunnel URL as sensitive, approve only connections you initiated (verify the code), revoke unused clients, and stop the tunnel and server when you are done.
+> ⚠️ **Security:** the same cautions apply — treat the server URL as sensitive, approve only connections you initiated (verify the code), revoke unused clients, and stop the server when you are done.
 
 ### Other MCP Clients
 
@@ -332,11 +328,9 @@ The bearer token is shown in the app's connection info and can be copied directl
 | Binding Address | `127.0.0.1` | `127.0.0.1` (localhost, use with adb port forwarding) or `0.0.0.0` (network, all interfaces) |
 | Bearer Token | Enabled, auto-generated UUID | Static token for MCP requests (Settings → Access). Enforcement is set by the Bearer toggle, not by clearing the value. |
 | OAuth | Enabled | Self-contained OAuth 2.1 server for Claude.ai / Claude Desktop custom connectors (Settings → Access). |
-| Public URL override | Empty (auto-detect) | Pin the public host used for OAuth metadata and share links. |
 | HTTPS | Disabled | Enable HTTPS with auto-generated self-signed certificate (configurable hostname) or upload custom .p12/.pfx |
 | Auto-start on Boot | Disabled | Start MCP server automatically when device boots |
 | Device Slug | Empty | Optional device identifier for tool name prefix (e.g., `pixel7` makes tools `android_pixel7_tap`) |
-| Remote Access Tunnel | Disabled | Expose server via public HTTPS URL (Cloudflare Quick Tunnels or ngrok) |
 | Tool Permissions | All enabled | Per-tool and per-parameter enable/disable (Settings > MCP Tools) |
 | File Size Limit | 50 MB | Maximum file size for file operations (range 1-500 MB) |
 | Allow HTTP Downloads | Disabled | Allow non-HTTPS downloads via `android_download_from_url` |
@@ -367,14 +361,11 @@ When the server is bound to `0.0.0.0`:
 
 **Warning**: Binding to `0.0.0.0` exposes the server to all devices on the same network. Only use on trusted private networks.
 
-### Using Remote Access Tunnels
+### Using over Tailscale
 
-For connecting from outside the local network without port forwarding:
+To connect from outside the local network without port forwarding, join the device to your [Tailscale](https://tailscale.com) tailnet and bind the server to `0.0.0.0` (network mode). The server listens on the device's tailnet address, so any machine on the same tailnet can reach `http(s)://<device>.<tailnet>.ts.net:8080/mcp` with your bearer token or OAuth — no port forwarding, no public exposure, and no third-party tunnel process.
 
-1. **Cloudflare Quick Tunnels** (default, no account required): Creates a temporary tunnel with a random `*.trycloudflare.com` HTTPS URL.
-2. **ngrok** (account required): Supports optional custom domains. Requires an ngrok authtoken (free tier available). Available on arm64-v8a and x86_64 devices.
-
-Enable the tunnel in the app's "Remote Access" section. The public URL is displayed in the connection info and server logs.
+For remote web connectors (Claude.ai, ChatGPT) that require a public HTTPS URL, put your own reverse proxy in front of the server or the tailnet address — this build ships no tunnel of its own.
 
 ### Headless Setup via ADB
 
@@ -441,13 +432,6 @@ adb shell am broadcast \
   --ez https_enabled false \
   --es certificate_source "AUTO_GENERATED" \
   --es certificate_hostname "mcp.local" \
-  --ez tunnel_enabled false \
-  --es tunnel_provider "CLOUDFLARE" \
-  --es cloudflare_tunnel_mode "TOKEN" \
-  --es cloudflare_tunnel_token "your-cloudflare-tunnel-token" \
-  --es cloudflare_tunnel_extra_args "--edge region1.v2.argotunnel.com:7844" \
-  --es ngrok_authtoken "your-ngrok-token" \
-  --es ngrok_domain "your-domain.ngrok-free.app" \
   --ei file_size_limit_mb 50 \
   --ez allow_http_downloads false \
   --ez allow_unverified_https_certs false \
@@ -472,7 +456,6 @@ Bearer enforcement is controlled by `--ez bearer_token_enabled <bool>`, NOT by c
 | `bearer_token` | string | Static bearer-token value (clearing it while `bearer_token_enabled=true` fails closed, it does NOT disable auth) |
 | `bearer_token_enabled` | boolean | Enable/disable bearer-token authentication (controls enforcement, independent of the value) |
 | `oauth_enabled` | boolean | Enable/disable the self-contained OAuth 2.1 server (Claude.ai / Claude Desktop connectors) |
-| `public_url_override` | string | Pin the public host used for OAuth metadata and share links (empty = auto-detect from the request) |
 | `binding_address` | string | `127.0.0.1` (localhost) or `0.0.0.0` (network) |
 | `port` | int | HTTP/HTTPS server port (1-65535) |
 | `auto_start_on_boot` | boolean | Start MCP server when device boots |
@@ -480,13 +463,6 @@ Bearer enforcement is controlled by `--ez bearer_token_enabled <bool>`, NOT by c
 | `https_enabled` | boolean | Enable HTTPS with TLS |
 | `certificate_source` | string | `AUTO_GENERATED` or `CUSTOM` |
 | `certificate_hostname` | string | Hostname for auto-generated certificate |
-| `tunnel_enabled` | boolean | Enable remote access tunnel |
-| `tunnel_provider` | string | `CLOUDFLARE` or `NGROK` |
-| `cloudflare_tunnel_mode` | string | `FREE` (Quick Tunnel, random `*.trycloudflare.com` URL) or `TOKEN` (named tunnel with static hostname) |
-| `cloudflare_tunnel_token` | string | Cloudflare named-tunnel token (used when `cloudflare_tunnel_mode` is `TOKEN`) |
-| `cloudflare_tunnel_extra_args` | string | Optional extra arguments passed to cloudflared (e.g. `--edge region1.v2.argotunnel.com:7844`) |
-| `ngrok_authtoken` | string | ngrok authentication token |
-| `ngrok_domain` | string | ngrok custom domain (optional) |
 | `file_size_limit_mb` | int | Max file size for file operations (1-500) |
 | `allow_http_downloads` | boolean | Allow non-HTTPS downloads |
 | `allow_unverified_https_certs` | boolean | Allow unverified HTTPS certificates for downloads |
@@ -523,7 +499,7 @@ The app declares the permissions below. **Normal** permissions are granted autom
 
 | Permission | Type | Used for |
 |------------|------|----------|
-| `INTERNET` | Normal | HTTP/HTTPS server and remote access tunnels |
+| `INTERNET` | Normal | HTTP/HTTPS server |
 | `ACCESS_NETWORK_STATE` | Normal | Detect network connectivity |
 | `FOREGROUND_SERVICE` | Normal | Run the MCP server as a foreground service |
 | `FOREGROUND_SERVICE_SPECIAL_USE` | Normal | Foreground service type for the MCP server |
@@ -560,7 +536,7 @@ Authentication is combined (dual-accept): a `/mcp` request is authorized by a va
 
 ### Network Security
 
-- **Default binding `127.0.0.1`**: Only accessible via adb port forwarding or tunnels (most secure)
+- **Default binding `127.0.0.1`**: Only accessible via adb port forwarding (most secure)
 - **Optional binding `0.0.0.0`**: Accessible over network (use only on trusted networks; security warning displayed when enabling)
 - **HTTPS**: Optional, disabled by default. When enabled, uses auto-generated self-signed certificates or upload your own CA-signed certificate. Certificate is stored in app-private storage.
 

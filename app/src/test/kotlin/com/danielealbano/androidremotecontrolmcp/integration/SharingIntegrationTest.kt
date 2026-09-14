@@ -340,7 +340,7 @@ class SharingIntegrationTest {
                     fileOperationProvider = fop,
                     requestHeaders =
                         mapOf(
-                            "X-Forwarded-Host" to "tunnel.example.com",
+                            "X-Forwarded-Host" to "proxy.example.com",
                             "X-Forwarded-Proto" to "https",
                         ),
                 ),
@@ -352,7 +352,7 @@ class SharingIntegrationTest {
                     )
                 val text = (result.content[0] as TextContent).text
                 assertTrue(
-                    text.contains("https://tunnel.example.com/s/"),
+                    text.contains("https://proxy.example.com/s/"),
                     "share URL must reflect X-Forwarded-Host and -Proto",
                 )
             }
@@ -376,7 +376,7 @@ class SharingIntegrationTest {
                         arguments = mapOf("location_id" to "loc1", "path" to "doc.pdf"),
                     )
                 val text = (result.content[0] as TextContent).text
-                assertFalse(text.contains("tunnel.example.com"), "no forwarded host must not leak into the URL")
+                assertFalse(text.contains("proxy.example.com"), "no forwarded host must not leak into the URL")
                 val token = TOKEN_REGEX.find(text)!!.groupValues[1]
                 assertEquals(
                     HttpStatusCode.OK,

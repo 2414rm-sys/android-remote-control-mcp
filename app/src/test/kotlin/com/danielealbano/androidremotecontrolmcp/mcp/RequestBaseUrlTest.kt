@@ -73,8 +73,8 @@ class RequestBaseUrlTest {
     @Test
     @DisplayName("uses X-Forwarded-Host and X-Forwarded-Proto when present")
     fun usesForwardedHeaders() {
-        val call = mockCall(forwardedHost = "tunnel.example", forwardedProto = "https")
-        assertEquals("https://tunnel.example", deriveBaseUrl(call))
+        val call = mockCall(forwardedHost = "proxy.example", forwardedProto = "https")
+        assertEquals("https://proxy.example", deriveBaseUrl(call))
     }
 
     @Test
@@ -85,18 +85,18 @@ class RequestBaseUrlTest {
     }
 
     @Test
-    @DisplayName("HTTPS tunnel with portless Host header does not append the local http default port")
-    fun httpsTunnelPortlessHostNoBogusPort() {
-        // cloudflared/ngrok terminate TLS and forward plaintext http; the Host header carries no port,
+    @DisplayName("HTTPS proxy with portless Host header does not append the local http default port")
+    fun httpsProxyPortlessHostNoBogusPort() {
+        // A reverse proxy terminates TLS and forwards plaintext http; the Host header carries no port,
         // so reconstructing host():port() would synthesize the http default (80) and yield https://host:80.
-        val tunnelHost = "stats-taxes-killing-exterior.trycloudflare.com"
+        val proxyHost = "proxy.example.com"
         val call =
             mockCall(
                 forwardedProto = "https",
-                hostHeader = tunnelHost,
-                listener = Listener(host = tunnelHost, port = 80, scheme = "http"),
+                hostHeader = proxyHost,
+                listener = Listener(host = proxyHost, port = 80, scheme = "http"),
             )
-        assertEquals("https://$tunnelHost", deriveBaseUrl(call))
+        assertEquals("https://$proxyHost", deriveBaseUrl(call))
     }
 
     @Test
@@ -114,16 +114,16 @@ class RequestBaseUrlTest {
     @DisplayName("omits default port")
     fun omitsDefaultPort() {
         assertEquals(
-            "https://tunnel.example",
-            deriveBaseUrl(mockCall(forwardedHost = "tunnel.example:443", forwardedProto = "https")),
+            "https://proxy.example",
+            deriveBaseUrl(mockCall(forwardedHost = "proxy.example:443", forwardedProto = "https")),
         )
         assertEquals(
-            "http://tunnel.example",
-            deriveBaseUrl(mockCall(forwardedHost = "tunnel.example:80", forwardedProto = "http")),
+            "http://proxy.example",
+            deriveBaseUrl(mockCall(forwardedHost = "proxy.example:80", forwardedProto = "http")),
         )
         assertEquals(
-            "https://tunnel.example:8443",
-            deriveBaseUrl(mockCall(forwardedHost = "tunnel.example:8443", forwardedProto = "https")),
+            "https://proxy.example:8443",
+            deriveBaseUrl(mockCall(forwardedHost = "proxy.example:8443", forwardedProto = "https")),
         )
     }
 
@@ -139,20 +139,6 @@ class RequestBaseUrlTest {
     fun takesFirstForwardedValue() {
         val call = mockCall(forwardedHost = "a.example, b.example", forwardedProto = "https, http")
         assertEquals("https://a.example", deriveBaseUrl(call))
-    }
-
-    @Test
-    @DisplayName("effectiveBaseUrl returns normalized override when set")
-    fun effectiveOverrideWins() {
-        val call = mockCall(forwardedHost = "tunnel.example", forwardedProto = "https")
-        assertEquals("https://pinned.host", effectiveBaseUrl(call, "HTTPS://Pinned.Host/"))
-    }
-
-    @Test
-    @DisplayName("effectiveBaseUrl falls back to derive when override blank")
-    fun effectiveFallsBackWhenBlank() {
-        val call = mockCall(forwardedHost = "tunnel.example", forwardedProto = "https")
-        assertEquals(deriveBaseUrl(call), effectiveBaseUrl(call, "   "))
     }
 
     @Test

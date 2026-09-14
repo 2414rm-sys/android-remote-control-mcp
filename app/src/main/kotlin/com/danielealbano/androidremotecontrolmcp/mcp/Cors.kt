@@ -41,8 +41,8 @@ private const val CORS_MAX_AGE_SECONDS = 3600L
  * `/mcp` returns 401. But if the user runs in OPEN mode (both `bearer_token_enabled` and
  * `oauth_enabled` disabled — an explicit, warned-about choice) on a network-reachable binding, a
  * malicious page in the victim's browser could now drive the tool surface. No `Origin`/`Host`
- * allowlist is enforced because the device's public host is dynamic (changing IPs, Cloudflare/ngrok
- * tunnels, `public_url_override`), so any static allowlist would break remote access. Stay on loopback
+ * allowlist is enforced because the device's host is dynamic (changing IPs, tailnet addresses),
+ * so any static allowlist would break access. Stay on loopback
  * and keep at least one auth method enabled unless the network is trusted — see PROJECT.md
  * "Network Security".
  *

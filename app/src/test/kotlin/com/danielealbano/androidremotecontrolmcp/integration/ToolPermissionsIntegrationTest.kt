@@ -1,14 +1,10 @@
 package com.danielealbano.androidremotecontrolmcp.integration
 
-import android.net.Uri
 import com.danielealbano.androidremotecontrolmcp.data.model.ToolPermissionsConfig
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.AccessibilityNodeData
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.BoundsData
 import com.danielealbano.androidremotecontrolmcp.services.accessibility.ScreenInfo
-import com.danielealbano.androidremotecontrolmcp.services.camera.VideoRecordingResult
-import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.mockk
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.AfterEach
@@ -118,36 +114,6 @@ class ToolPermissionsIntegrationTest {
         }
 
     @Test
-    fun `audio absent from schema when disabled`() =
-        runTest {
-            val perms =
-                ToolPermissionsConfig(
-                    disabledParams = mapOf("save_camera_video" to setOf("audio")),
-                )
-
-            McpIntegrationTestHelper.withTestApplication(perms = perms) { client, _ ->
-                val result = client.listTools()
-                val tool = result.tools.find { it.name == "android_save_camera_video" }
-                assertTrue(tool != null, "save_camera_video tool should be registered")
-
-                val properties = tool!!.inputSchema.properties
-                assertFalse(
-                    properties?.containsKey("audio") == true,
-                    "audio should be absent from schema when disabled",
-                )
-                // Other properties should still be present
-                assertTrue(
-                    properties?.containsKey("camera_id") == true,
-                    "camera_id should still be in schema",
-                )
-                assertTrue(
-                    properties?.containsKey("duration") == true,
-                    "duration should still be in schema",
-                )
-            }
-        }
-
-    @Test
     fun `disabled tool call returns error`() =
         runTest {
             val perms = ToolPermissionsConfig(disabledTools = setOf("tap"))
@@ -199,69 +165,6 @@ class ToolPermissionsIntegrationTest {
             }
         }
 
-    @Test
-    fun `audio enforced at execution time`() =
-        runTest {
-            val deps = McpIntegrationTestHelper.createMockDependencies()
-            val mockUri = mockk<Uri>()
-            coEvery {
-                deps.fileOperationProvider.createFileUri("loc1", "video.mp4", "video/mp4")
-            } returns mockUri
-
-            coEvery {
-                deps.cameraProvider.saveVideo(
-                    cameraId = "0",
-                    outputUri = mockUri,
-                    durationSeconds = 5,
-                    width = null,
-                    height = null,
-                    audio = false,
-                    flashMode = any(),
-                )
-            } returns
-                VideoRecordingResult(
-                    fileSizeBytes = 54321L,
-                    durationMs = 5000L,
-                    thumbnailData = "thumbdata",
-                    thumbnailWidth = 320,
-                    thumbnailHeight = 240,
-                )
-
-            val perms =
-                ToolPermissionsConfig(
-                    disabledParams = mapOf("save_camera_video" to setOf("audio")),
-                )
-
-            McpIntegrationTestHelper.withTestApplication(deps, perms = perms) { client, _ ->
-                val result =
-                    client.callTool(
-                        name = "android_save_camera_video",
-                        arguments =
-                            mapOf(
-                                "camera_id" to "0",
-                                "location_id" to "loc1",
-                                "path" to "video.mp4",
-                                "duration" to 5,
-                                "audio" to true,
-                            ),
-                    )
-                assertNotEquals(true, result.isError)
-
-                // Verify audio was forced to false despite client sending true
-                coVerify {
-                    deps.cameraProvider.saveVideo(
-                        cameraId = "0",
-                        outputUri = mockUri,
-                        durationSeconds = 5,
-                        width = null,
-                        height = null,
-                        audio = false,
-                        flashMode = any(),
-                    )
-                }
-            }
-        }
-
     companion object {
         private val ALL_TOOL_NAMES =
             setOf(
@@ -304,12 +207,6 @@ class ToolPermissionsIntegrationTest {
                 "open_app",
                 "list_apps",
                 "close_app",
-                "list_cameras",
-                "list_camera_photo_resolutions",
-                "list_camera_video_resolutions",
-                "take_camera_photo",
-                "save_camera_photo",
-                "save_camera_video",
                 "send_intent",
                 "open_uri",
                 "notification_list",
@@ -319,7 +216,6 @@ class ToolPermissionsIntegrationTest {
                 "notification_action",
                 "notification_reply",
                 "get_screen_state",
-                "get_location",
                 "get_shared_content",
                 "share_file_via_web",
             )

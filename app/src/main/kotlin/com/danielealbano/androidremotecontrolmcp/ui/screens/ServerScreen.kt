@@ -4,18 +4,12 @@ package com.danielealbano.androidremotecontrolmcp.ui.screens
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,10 +17,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -35,7 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -65,7 +55,6 @@ fun ServerScreen(
     onNavigateToPermissions: () -> Unit,
     onShowAllLogs: () -> Unit,
     onNavigateToNetworkSettings: () -> Unit,
-    onNavigateToTunnelSettings: () -> Unit,
     onOpenPrivacySettings: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MainViewModel = hiltViewModel(),
@@ -81,7 +70,6 @@ fun ServerScreen(
     val serverConfig by viewModel.serverConfig.collectAsStateWithLifecycle()
     val serverStatus by viewModel.serverStatus.collectAsStateWithLifecycle()
     val recentServerLogs by logsViewModel.recentServerLogs.collectAsStateWithLifecycle()
-    val tunnelStatus by viewModel.tunnelStatus.collectAsStateWithLifecycle()
 
     val isAccessibilityEnabled by viewModel.isAccessibilityEnabled.collectAsStateWithLifecycle()
     val isBatteryOptimizationIgnored by viewModel.isBatteryOptimizationIgnored.collectAsStateWithLifecycle()
@@ -131,15 +119,11 @@ fun ServerScreen(
                 Spacer(Modifier.height(16.dp))
             }
 
-            if (serverConfig.bindingAddress == BindingAddress.LOCALHOST && !serverConfig.tunnelEnabled) {
+            if (serverConfig.bindingAddress == BindingAddress.LOCALHOST) {
                 NetworkAccessSuggestionCard(
                     onEnableWifi = {
                         viewModel.updateBindingAddress(BindingAddress.NETWORK)
                         onNavigateToNetworkSettings()
-                    },
-                    onSetUpTunnel = {
-                        viewModel.updateTunnelEnabled(true)
-                        onNavigateToTunnelSettings()
                     },
                 )
                 Spacer(Modifier.height(16.dp))
@@ -178,9 +162,7 @@ fun ServerScreen(
                 port = serverConfig.port,
                 httpsEnabled = serverConfig.httpsEnabled,
                 bearerToken = serverConfig.bearerToken,
-                tunnelEnabled = serverConfig.tunnelEnabled,
                 serverStatus = serverStatus,
-                tunnelStatus = tunnelStatus,
                 onCopyAll = { text ->
                     clipboardManager.setText(AnnotatedString(text))
                     Toast.makeText(context, copiedToClipboardMessage, Toast.LENGTH_SHORT).show()
@@ -227,19 +209,13 @@ private fun NoAuthWarningCard() {
 }
 
 @Composable
-private fun NetworkAccessSuggestionCard(
-    onEnableWifi: () -> Unit,
-    onSetUpTunnel: () -> Unit,
-) {
+private fun NetworkAccessSuggestionCard(onEnableWifi: () -> Unit) {
     CalloutCard(
         icon = Icons.Default.Info,
         title = stringResource(R.string.server_network_access_suggestion_title),
     ) {
         TextButton(onClick = onEnableWifi) {
             Text(stringResource(R.string.server_network_access_suggestion_wifi))
-        }
-        TextButton(onClick = onSetUpTunnel) {
-            Text(stringResource(R.string.server_network_access_suggestion_tunnel))
         }
     }
 }
