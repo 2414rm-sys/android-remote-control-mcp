@@ -37,10 +37,10 @@ fun Route.installOAuthRoutes(deps: OAuthRouteDeps) {
     val pendingAuthorize = PendingAuthorizeStore()
 
     get("/.well-known/oauth-protected-resource") { call.respondProtectedResourceMetadata(deps) }
-    get("/.well-known/oauth-protected-resource/{tail...}") { call.respondProtectedResourceMetadata(deps) }
-    get("/.well-known/oauth-authorization-server") { call.respondAuthorizationServerMetadata(deps) }
-    get("/.well-known/oauth-authorization-server/{tail...}") { call.respondAuthorizationServerMetadata(deps) }
-    get("/.well-known/openid-configuration") { call.respondAuthorizationServerMetadata(deps) }
+    get("/.well-known/oauth-protected-resource/{tail...}") { call.respondProtectedResourceMetadata() }
+    get("/.well-known/oauth-authorization-server") { call.respondAuthorizationServerMetadata() }
+    get("/.well-known/oauth-authorization-server/{tail...}") { call.respondAuthorizationServerMetadata() }
+    get("/.well-known/openid-configuration") { call.respondAuthorizationServerMetadata() }
 
     post("/register") { call.handleRegister(deps) }
     get("/authorize") { call.handleAuthorize(deps, pendingAuthorize) }
@@ -48,14 +48,14 @@ fun Route.installOAuthRoutes(deps: OAuthRouteDeps) {
     post("/token") { call.handleToken(deps) }
 }
 
-private suspend fun ApplicationCall.respondProtectedResourceMetadata(deps: OAuthRouteDeps) {
+private suspend fun ApplicationCall.respondProtectedResourceMetadata() {
     respondText(
         OAuthMetadata.protectedResourceMetadata(deriveBaseUrl(this)),
         ContentType.Application.Json,
     )
 }
 
-private suspend fun ApplicationCall.respondAuthorizationServerMetadata(deps: OAuthRouteDeps) {
+private suspend fun ApplicationCall.respondAuthorizationServerMetadata() {
     respondText(
         OAuthMetadata.authorizationServerMetadata(deriveBaseUrl(this)),
         ContentType.Application.Json,

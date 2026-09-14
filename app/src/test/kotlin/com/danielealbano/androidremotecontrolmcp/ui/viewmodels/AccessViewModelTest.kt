@@ -33,14 +33,6 @@ class AccessViewModelTest {
         repository = mockk(relaxed = true)
         configFlow = MutableStateFlow(ServerConfig(oauthEnabled = true, bearerTokenEnabled = true))
         every { repository.serverConfig } returns configFlow
-        every { repository.validatePublicUrlOverride(any()) } answers {
-            val url = firstArg<String>()
-            if (url.isBlank() || url.startsWith("http://") || url.startsWith("https://")) {
-                Result.success(url)
-            } else {
-                Result.failure(IllegalArgumentException("bad"))
-            }
-        }
         viewModel = AccessViewModel(repository, testDispatcher)
     }
 
